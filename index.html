@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#191512">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.huggingface.co https://cdn-lfs-eu-1.huggingface.co https://cas-bridge.xethub.hf.co https://transfer.xethub.hf.co https://cdn.jsdelivr.net; worker-src 'self' blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=(), interest-cohort=()">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
 <title>EDGE//AI - on-device inference, any phone</title>
 <style>
 :root{
@@ -398,6 +400,7 @@ audio{width:100%;margin-top:12px;display:none}
       <div class="note"><h3>The iPhone fine print</h3><p>WebGPU reaches iPhones only with iOS 26+ in Safari, and every iOS browser is Safari's engine underneath - Chrome on iPhone has exactly the same ceiling. On older iOS you get the WASM fallback: everything still works, chat models just think slowly.</p></div>
       <div class="note"><h3>Why single-threaded on WASM</h3><p>Multithreaded WASM needs cross-origin isolation headers that static hosting cannot send. So the CPU fallback uses one core. WebGPU does not have this limit - another reason the GPU path feels like a different machine.</p></div>
       <div class="note"><h3>Privacy, in one breath</h3><p>No account, no API key, no analytics, no server of ours anywhere. The only network calls are model files from huggingface.co, and only when you press Load. History is encrypted with your passphrase or not stored at all.</p></div>
+      <div class="note"><h3>Security posture</h3><p>The AI engine is pinned and served from this same site, not executed from a changing CDN. A restrictive browser policy blocks frames, forms, plugins, payment, camera, location, USB, Bluetooth and every network destination except this site and Hugging Face model hosts. Microphone access is allowed only when you press Record. The GPU runtime needs local <b>blob modules</b> and WebAssembly compilation; both stay inside this browser tab. Vault history uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write. Limits: model weights are public third-party data from Hugging Face, and a malicious or broken browser extension can still observe pages you open.</p></div>
     </div>
     <div class="footnote">EDGE//AI - on-device inference for any phone<br>Engine: Transformers.js (Hugging Face) + ONNX Runtime Web, WebGPU with WASM fallback<br>No backend. No key. No account.</div>
   </section>
@@ -420,7 +423,7 @@ audio{width:100%;margin-top:12px;display:none}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { pipeline, env, TextStreamer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
+import { pipeline, env, TextStreamer } from './transformers.min.js';
 
 env.allowLocalModels = false;
 env.useBrowserCache = true;
@@ -509,7 +512,7 @@ $('#unlockbtn').onclick=async ()=>{
       if(data){ try{ S.store=await decJSON(key, JSON.parse(data)); }catch(e){ S.store={history:{},settings:{}}; } }
     }else{
       if(p1!==p2){ $('#lockerr').textContent='passphrases do not match'; return; }
-      if(p1.length<4){ $('#lockerr').textContent='use at least 4 characters'; return; }
+      if(p1.length<10){ $('#lockerr').textContent='Use at least 10 characters for a new vault.'; return; }
       const salt=crypto.getRandomValues(new Uint8Array(16));
       const key=await deriveKey(p1, salt);
       const verifier=await encJSON(key,'EDGEOK');
