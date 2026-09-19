@@ -760,7 +760,7 @@ async function loadModel(mid){
     card.classList.add('iscached');
     setPill('live','ON-DEVICE');
     openWorkbench(m);
-    announceToolReady(); if(S.toolQueue.length){const q=S.toolQueue.shift();handleToolCall({type:'edge-ai:prompt',id:'url-'+Date.now(),prompt:q.prompt},q.source);}
+    announceToolReady(); if(S.toolQueue.length){const q=S.toolQueue.shift();if(BRIDGE_NAME==='openmuse')handleBridgeInfer({edgeai:'infer',id:'url-'+Date.now(),nonce:BRIDGE_NONCE,messages:[{role:'user',content:q.prompt}],stream:true},q.source);else handleLegacyToolCall({type:'edge-ai:prompt',id:'url-'+Date.now(),prompt:q.prompt},q.source);}
     markCachedBadges();
   }catch(e){
     console.error(e);
@@ -830,38 +830,58 @@ $('#cacheclear').onclick=()=>askConfirm('Delete every cached model file? They re
 
 /* ---------- same-origin local tool bridge ---------- */
 const TOOL_ORIGIN=location.origin;
+const BRIDGE_Q=new URLSearchParams(location.search);
+const BRIDGE_NAME=BRIDGE_Q.get('bridge')||'';
+const BRIDGE_NONCE=(BRIDGE_Q.get('nonce')||'').slice(0,180);
 function toolReply(target,payload){ try{ if(target&&target.postMessage)target.postMessage(payload,TOOL_ORIGIN); }catch(_){} }
+function bridgeReply(target,payload){toolReply(target,{...payload,nonce:BRIDGE_NONCE});}
 function toolState(text){ const e=$('#toolstatus'); if(e)e.textContent=text; }
-async function runToolPrompt(prompt, options={}){
+function bridgeModels(){return CATALOG[0].items.map(m=>{const [fit]=fitFor(m.tier);return {id:m.id,name:m.name,params:m.params,fit,loaded:S.engines.chat?.model?.id===m.id};}).filter(m=>m.fit!=='risky');}
+async function runToolPrompt(messages, options={}, onChunk=()=>{}){
   const eng=S.engines.chat;
   if(!eng)throw Object.assign(new Error('model required'),{code:'needs_model'});
   if(S.busy)throw Object.assign(new Error('engine busy'),{code:'busy'});
   S.busy=true; setPill('live','TOOL'); toolState('Running a local request…');
   let out='',tok=0;const t0=performance.now();let first=null;
   try{
-    const streamer=new TextStreamer(eng.pipe.tokenizer,{skip_prompt:true,skip_special_tokens:true,callback_function:t=>{if(first==null)first=performance.now();out+=t;tok++;toolState('Generating locally · '+tok+' tokens');}});
-    const messages=[{role:'system',content:String(options.system||'You are a helpful, concise assistant.').slice(0,2000)},{role:'user',content:String(prompt).slice(0,20000)}];
+    const streamer=new TextStreamer(eng.pipe.tokenizer,{skip_prompt:true,skip_special_tokens:true,callback_function:t=>{if(first==null)first=performance.now();out+=t;tok++;toolState('Generating locally · '+tok+' tokens');onChunk(out);}});
+    const safe=(Array.isArray(messages)?messages:[]).slice(-20).map(m=>({role:['system','user','assistant'].includes(m.role)?m.role:'user',content:String(m.content||'').slice(0,20000)})).filter(m=>m.content);
+    if(!safe.length)throw Object.assign(new Error('prompt required'),{code:'bad_prompt'});
     const max=Math.max(16,Math.min(768,Number(options.max_new_tokens)||256));
     const temp=Math.max(0,Math.min(1.5,Number(options.temperature) || .7));
-    await eng.pipe(messages,{max_new_tokens:max,do_sample:temp>0,temperature:Math.max(temp,.01),top_p:.9,repetition_penalty:1.15,streamer});
+    await eng.pipe(safe,{max_new_tokens:max,do_sample:temp>0,temperature:Math.max(temp,.01),top_p:.9,repetition_penalty:1.15,streamer});
     const sec=(performance.now()-t0)/1000;toolState('Last local tool call completed · '+(tok/sec).toFixed(1)+' tok/s');
     return {text:out,metrics:{tokens:tok,seconds:Number(sec.toFixed(2)),tokens_per_second:Number((tok/sec).toFixed(2)),engine:devPick(),model:eng.model.repo}};
-  }finally{S.busy=false;setPill('live','ON-DEVICE');}
+  }finally{S.busy=false;setPill(S.engines.chat?'live':'idle',S.engines.chat?'ON-DEVICE':'IDLE');}
 }
-async function handleToolCall(data,source){
+async function handleLegacyToolCall(data,source){
   const id=String(data.id||crypto.randomUUID()).slice(0,120),prompt=typeof data.prompt==='string'?data.prompt.trim():'';
   if(!prompt){toolReply(source,{type:'edge-ai:error',id,code:'bad_prompt',message:'Send a non-empty prompt.'});return;}
-  if(!S.engines.chat){
-    toolState('A local project is waiting. Load a chat model to continue.');
-    toolReply(source,{type:'edge-ai:error',id,code:'needs_model',message:'Unlock EDGE//AI and load a chat model, then send the request again.'});
-    $$('.tabbar button').forEach(x=>x.classList.toggle('on',x.dataset.view==='models'));$$('.view').forEach(v=>v.classList.toggle('on',v.id==='view-models'));return;
-  }
-  try{const r=await runToolPrompt(prompt,data.options||{});toolReply(source,{type:'edge-ai:result',id,...r});}
+  if(!S.engines.chat){toolState('A local project is waiting. Load a chat model to continue.');toolReply(source,{type:'edge-ai:error',id,code:'needs_model',message:'Unlock EDGE//AI and load a chat model, then send the request again.'});showModels();return;}
+  try{const r=await runToolPrompt([{role:'system',content:String(data.options?.system||'You are a helpful, concise assistant.')},{role:'user',content:prompt}],data.options||{});toolReply(source,{type:'edge-ai:result',id,...r});}
   catch(e){const code=e.code||'local_error';toolReply(source,{type:'edge-ai:error',id,code,message:code==='busy'?'EDGE//AI is finishing another local request. Try again in a moment.':humanError(e,'local tool call')});}
 }
-window.addEventListener('message',e=>{if(e.origin!==TOOL_ORIGIN||!e.data||e.data.type!=='edge-ai:prompt')return;handleToolCall(e.data,e.source);});
-function announceToolReady(){const payload={type:'edge-ai:ready',version:1,model:S.engines.chat?.model?.repo||null,state:S.engines.chat?'ready':'needs_model'};if(window.opener)toolReply(window.opener,payload);if(window.parent!==window)toolReply(window.parent,payload);}
-function queueURLPrompt(){const q=new URLSearchParams(location.search).get('prompt');if(!q)return;const source=window.opener||(window.parent!==window?window.parent:null);toolState('A URL prompt is queued. Load a chat model to run it.');if(S.engines.chat)handleToolCall({type:'edge-ai:prompt',id:'url-'+Date.now(),prompt:q},source);else S.toolQueue.push({prompt:q,source});}
+function showModels(){$$('.tabbar button').forEach(x=>x.classList.toggle('on',x.dataset.view==='models'));$$('.view').forEach(v=>v.classList.toggle('on',v.id==='view-models'));}
+async function handleBridgeInfer(data,source){
+  const id=String(data.id||crypto.randomUUID()).slice(0,120);
+  if(!BRIDGE_NONCE||data.nonce!==BRIDGE_NONCE)return;
+  if(!S.engines.chat){bridgeReply(source,{edgeai:'error',id,code:'needs_model',message:'Open EDGE//AI, unlock it and load a chat model first.'});toolState('Open Muse is waiting. Load a chat model to continue.');showModels();return;}
+  if(data.model&&data.model!==S.engines.chat.model.id){bridgeReply(source,{edgeai:'error',id,code:'wrong_model',message:'That model is not loaded. Open EDGE//AI and load '+String(data.model).slice(0,80)+'.'});return;}
+  let last='';
+  try{const r=await runToolPrompt(data.messages,data.options||{},text=>{if(data.stream!==false&&text!==last){last=text;bridgeReply(source,{edgeai:'chunk',id,text});}});bridgeReply(source,{edgeai:'done',id,text:r.text,metrics:r.metrics});}
+  catch(e){const code=e.code||'local_error';bridgeReply(source,{edgeai:'error',id,code,message:code==='busy'?'EDGE//AI is finishing another local request. Try again in a moment.':humanError(e,'local tool call')});}
+}
+window.addEventListener('message',e=>{
+  if(e.origin!==TOOL_ORIGIN||!e.data)return;
+  if(e.data.type==='edge-ai:prompt')handleLegacyToolCall(e.data,e.source);
+  if(e.data.edgeai==='infer'&&BRIDGE_NAME==='openmuse')handleBridgeInfer(e.data,e.source);
+});
+function announceToolReady(){
+  const legacy={type:'edge-ai:ready',version:1,model:S.engines.chat?.model?.repo||null,state:S.engines.chat?'ready':'needs_model'};
+  if(window.opener)toolReply(window.opener,legacy);if(window.parent!==window)toolReply(window.parent,legacy);
+  if(BRIDGE_NAME==='openmuse'&&BRIDGE_NONCE&&window.parent!==window)bridgeReply(window.parent,{edgeai:'ready',version:1,state:S.engines.chat?'ready':'needs_model',loadedModel:S.engines.chat?.model?.id||null,models:bridgeModels()});
+}
+function queueURLPrompt(){const q=BRIDGE_Q.get('prompt');if(!q)return;const source=window.opener||(window.parent!==window?window.parent:null);toolState('A URL prompt is queued. Load a chat model to run it.');if(S.engines.chat){if(BRIDGE_NAME==='openmuse')handleBridgeInfer({edgeai:'infer',id:'url-'+Date.now(),nonce:BRIDGE_NONCE,messages:[{role:'user',content:q}],stream:true},source);else handleLegacyToolCall({type:'edge-ai:prompt',id:'url-'+Date.now(),prompt:q},source);}else S.toolQueue.push({prompt:q,source});}
 
 /* ---------- chat ---------- */
 function chatKey(){ return S.chatModel?S.chatModel.id:'chat'; }
