@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#191512">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=(), interest-cohort=()">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
 <title>EDGE//AI - on-device inference, any phone</title>
 <style>
 :root{
@@ -387,6 +387,18 @@ audio{width:100%;margin-top:12px;display:none}
         <div class="compat">This is the honest browser version of “load any model”: any <b>compatible Hugging Face ONNX text-generation repo</b>, within this device's memory. GGUF remains a native-app format and is not silently converted or uploaded.</div>
       </div>
     </div>
+    <div class="cloakbox" id="toolbridge">
+      <div class="label">LOCAL TOOL BRIDGE · SAME ORIGIN</div>
+      <h2 style="font-family:var(--serif);font-weight:400;margin:5px 0">Other projects can call this engine.</h2>
+      <p style="color:var(--dim);font-size:13px">Open Muse and other apps on <b>aeiouvcode.github.io</b> can send a prompt to an open EDGE//AI window and receive the on-device reply. No server, fetch endpoint or cross-site access. You unlock the vault and load a model first; callers cannot bypass either step.</p>
+      <div class="cloakgrid">
+        <div><div class="label">STATUS</div><div class="cloakout" id="toolstatus">Waiting for local caller. Load a chat model to arm the bridge.</div></div>
+        <div><div class="label">INTERFACE</div><div class="cloakout">postMessage({type:'edge-ai:prompt', id, prompt, options})
+→ {type:'edge-ai:result', id, text, metrics}
+Same origin only.</div></div>
+      </div>
+      <div class="compat">URL handoff also works: <b>?prompt=...</b> queues the prompt visibly. The reply returns only through the same-origin opener or parent window, never to a URL supplied by the prompt.</div>
+    </div>
     <div class="cloakbox">
       <div class="label">CLOUD CLOAK · CLIENT-SIDE</div>
       <h2 style="font-family:var(--serif);font-weight:400;margin:5px 0">Real details stay here.</h2>
@@ -424,8 +436,9 @@ audio{width:100%;margin-top:12px;display:none}
       <div class="note"><h3>The iPhone fine print</h3><p>WebGPU reaches iPhones only with iOS 26+ in Safari, and every iOS browser is Safari's engine underneath - Chrome on iPhone has exactly the same ceiling. On older iOS you get the WASM fallback: everything still works, chat models just think slowly.</p></div>
       <div class="note"><h3>Why single-threaded on WASM</h3><p>Multithreaded WASM needs cross-origin isolation headers that static hosting cannot send. So the CPU fallback uses one core. WebGPU does not have this limit - another reason the GPU path feels like a different machine.</p></div>
       <div class="note"><h3>Privacy, in one breath</h3><p>No account, no API key, no analytics, no server of ours anywhere. The only network calls are model files from huggingface.co, and only when you press Load. History is encrypted with your passphrase or not stored at all.</p></div>
+      <div class="note"><h3>Local tool bridge</h3><p>Same-origin projects can call an already-open EDGE//AI window through postMessage. Callers cannot read the vault, model cache or chat history, and cross-origin messages are ignored. The user still unlocks the app and chooses the loaded model.</p></div>
       <div class="note"><h3>Cloud cloak</h3><p>Cloud routing is off by default. When it arrives, the optional cloak replaces detected private details with consistent synthetic twins before a request leaves, then restores them in the reply locally. The encrypted vault holds the mapping. Preview remains mandatory because local pattern detection cannot identify every name or secret.</p></div>
-      <div class="note"><h3>Security posture</h3><p>The AI engine is pinned and served from this same site, not executed from a changing CDN. A restrictive browser policy blocks frames, forms, plugins, payment, camera, location, USB, Bluetooth and every network destination except this site and Hugging Face model hosts. Microphone access is allowed only when you press Record. The GPU runtime needs local <b>blob modules</b> and WebAssembly compilation; both stay inside this browser tab. Vault history uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write. Limits: model weights are public third-party data from Hugging Face, and a malicious or broken browser extension can still observe pages you open.</p></div>
+      <div class="note"><h3>Security posture</h3><p>The AI engine is pinned and served from this same site, not executed from a changing CDN. A restrictive browser policy blocks cross-origin frames, forms, plugins, payment, camera, location, USB, Bluetooth and every network destination except this site and Hugging Face model hosts. Microphone access is allowed only when you press Record. The GPU runtime needs local <b>blob modules</b> and WebAssembly compilation; both stay inside this browser tab. Vault history uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write. Limits: model weights are public third-party data from Hugging Face, and a malicious or broken browser extension can still observe pages you open.</p></div>
     </div>
     <div class="footnote">EDGE//AI - on-device inference for any phone<br>Engine: Transformers.js (Hugging Face) + ONNX Runtime Web, WebGPU with WASM fallback<br>No backend. No key. No account.</div>
   </section>
@@ -462,7 +475,7 @@ const S = {
   history: [],        // chat messages for active chat model
   benchStop: false,
   store: { history: {}, settings: {}, benchmarks: [], cloakMap: {} },
-  busy: false,
+  busy: false, toolCaller: null, toolQueue: [],
 };
 
 /* ---------- utils ---------- */
@@ -554,7 +567,7 @@ $('#lockpass2').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#unlockbtn
 function enterApp(){
   $('#lock').classList.remove('on');
   $('#lockbtn').style.display = S.saveMode==='enc' ? 'block':'none';
-  if(S.saveMode==='enc' && S.store.settings.lastTab){ /* keep probe default */ } renderCloakState();
+  if(S.saveMode==='enc' && S.store.settings.lastTab){ /* keep probe default */ } renderCloakState(); announceToolReady(); queueURLPrompt();
 }
 $('#lockbtn').onclick=()=>{ S.key=null; S.history=[]; $('#thread').innerHTML=''; lockInit(); };
 async function persist(){
@@ -747,6 +760,7 @@ async function loadModel(mid){
     card.classList.add('iscached');
     setPill('live','ON-DEVICE');
     openWorkbench(m);
+    announceToolReady(); if(S.toolQueue.length){const q=S.toolQueue.shift();handleToolCall({type:'edge-ai:prompt',id:'url-'+Date.now(),prompt:q.prompt},q.source);}
     markCachedBadges();
   }catch(e){
     console.error(e);
@@ -813,6 +827,41 @@ $('#cacheclear').onclick=()=>askConfirm('Delete every cached model file? They re
   $$('.card.iscached').forEach(c=>c.classList.remove('iscached'));
   refreshCacheInfo(); toast('model cache cleared');
 });
+
+/* ---------- same-origin local tool bridge ---------- */
+const TOOL_ORIGIN=location.origin;
+function toolReply(target,payload){ try{ if(target&&target.postMessage)target.postMessage(payload,TOOL_ORIGIN); }catch(_){} }
+function toolState(text){ const e=$('#toolstatus'); if(e)e.textContent=text; }
+async function runToolPrompt(prompt, options={}){
+  const eng=S.engines.chat;
+  if(!eng)throw Object.assign(new Error('model required'),{code:'needs_model'});
+  if(S.busy)throw Object.assign(new Error('engine busy'),{code:'busy'});
+  S.busy=true; setPill('live','TOOL'); toolState('Running a local request…');
+  let out='',tok=0;const t0=performance.now();let first=null;
+  try{
+    const streamer=new TextStreamer(eng.pipe.tokenizer,{skip_prompt:true,skip_special_tokens:true,callback_function:t=>{if(first==null)first=performance.now();out+=t;tok++;toolState('Generating locally · '+tok+' tokens');}});
+    const messages=[{role:'system',content:String(options.system||'You are a helpful, concise assistant.').slice(0,2000)},{role:'user',content:String(prompt).slice(0,20000)}];
+    const max=Math.max(16,Math.min(768,Number(options.max_new_tokens)||256));
+    const temp=Math.max(0,Math.min(1.5,Number(options.temperature) || .7));
+    await eng.pipe(messages,{max_new_tokens:max,do_sample:temp>0,temperature:Math.max(temp,.01),top_p:.9,repetition_penalty:1.15,streamer});
+    const sec=(performance.now()-t0)/1000;toolState('Last local tool call completed · '+(tok/sec).toFixed(1)+' tok/s');
+    return {text:out,metrics:{tokens:tok,seconds:Number(sec.toFixed(2)),tokens_per_second:Number((tok/sec).toFixed(2)),engine:devPick(),model:eng.model.repo}};
+  }finally{S.busy=false;setPill('live','ON-DEVICE');}
+}
+async function handleToolCall(data,source){
+  const id=String(data.id||crypto.randomUUID()).slice(0,120),prompt=typeof data.prompt==='string'?data.prompt.trim():'';
+  if(!prompt){toolReply(source,{type:'edge-ai:error',id,code:'bad_prompt',message:'Send a non-empty prompt.'});return;}
+  if(!S.engines.chat){
+    toolState('A local project is waiting. Load a chat model to continue.');
+    toolReply(source,{type:'edge-ai:error',id,code:'needs_model',message:'Unlock EDGE//AI and load a chat model, then send the request again.'});
+    $$('.tabbar button').forEach(x=>x.classList.toggle('on',x.dataset.view==='models'));$$('.view').forEach(v=>v.classList.toggle('on',v.id==='view-models'));return;
+  }
+  try{const r=await runToolPrompt(prompt,data.options||{});toolReply(source,{type:'edge-ai:result',id,...r});}
+  catch(e){const code=e.code||'local_error';toolReply(source,{type:'edge-ai:error',id,code,message:code==='busy'?'EDGE//AI is finishing another local request. Try again in a moment.':humanError(e,'local tool call')});}
+}
+window.addEventListener('message',e=>{if(e.origin!==TOOL_ORIGIN||!e.data||e.data.type!=='edge-ai:prompt')return;handleToolCall(e.data,e.source);});
+function announceToolReady(){const payload={type:'edge-ai:ready',version:1,model:S.engines.chat?.model?.repo||null,state:S.engines.chat?'ready':'needs_model'};if(window.opener)toolReply(window.opener,payload);if(window.parent!==window)toolReply(window.parent,payload);}
+function queueURLPrompt(){const q=new URLSearchParams(location.search).get('prompt');if(!q)return;const source=window.opener||(window.parent!==window?window.parent:null);toolState('A URL prompt is queued. Load a chat model to run it.');if(S.engines.chat)handleToolCall({type:'edge-ai:prompt',id:'url-'+Date.now(),prompt:q},source);else S.toolQueue.push({prompt:q,source});}
 
 /* ---------- chat ---------- */
 function chatKey(){ return S.chatModel?S.chatModel.id:'chat'; }
