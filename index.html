@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#191512">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.huggingface.co https://cdn-lfs-eu-1.huggingface.co https://cas-bridge.xethub.hf.co https://transfer.xethub.hf.co https://cdn.jsdelivr.net; worker-src 'self' blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.huggingface.co https://cdn-lfs-eu-1.huggingface.co https://cas-bridge.xethub.hf.co https://transfer.xethub.hf.co https://cdn.jsdelivr.net; worker-src 'self' blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:">
 <title>EDGE//AI - on-device inference, any phone</title>
 <style>
 :root{
@@ -441,6 +441,7 @@ const S = {
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 function esc(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function fmtBytes(b){ if(b==null)return'?'; const u=['B','KB','MB','GB']; let i=0; while(b>=1024&&i<3){b/=1024;i++;} return b.toFixed(i?1:0)+' '+u[i]; }
+function friendlyLoadError(e){ const m=(e&&e.message||e||'unknown error').toString(); if(/failed to fetch|networkerror|load failed/i.test(m))return 'model host was blocked or unreachable. Updated host access is live; retry once. If it repeats, switch network and tell us the model name.'; return m.slice(0,220); }
 let confirmCb=null;
 function askConfirm(text, cb){ $('#confirmtext').textContent=text; $('#confirm').classList.add('on'); confirmCb=cb; }
 $('#confirmyes').onclick=()=>{ $('#confirm').classList.remove('on'); if(confirmCb)confirmCb(); };
@@ -706,7 +707,7 @@ async function loadModel(mid){
     console.error(e);
     card.querySelector('.loadnote').textContent='failed: '+(e.message||e);
     setPill('idle','IDLE');
-    toast('Load failed: '+(e.message||e).toString().slice(0,140), 5200);
+    toast('Load failed: '+friendlyLoadError(e), 7000);
   }finally{
     S.busy=false; card.classList.remove('loading');
     card.querySelector('.loadbtn').disabled=false;
