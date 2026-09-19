@@ -141,6 +141,21 @@ audio{width:100%;margin-top:12px;display:none}
 .simbar{height:8px;background:var(--line2);border-radius:99px;overflow:hidden;margin-top:8px}
 .simbar i{display:block;height:100%;background:var(--acc);width:0}
 
+/* lab: benchmark + custom model */
+.labgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.labcard{border:1px solid var(--line);border-radius:4px;background:var(--panel);padding:16px}
+.labcard h2{font-family:var(--serif);font-size:22px;font-weight:400;margin:4px 0 8px}
+.labcard p{color:var(--dim);font-size:13px}
+.checklist{margin:14px 0;border-top:1px solid var(--line2)}
+.checkrow{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line2);font-size:12px}
+.checkrow input{width:16px;height:16px;accent-color:var(--acc)}
+.checkrow span:last-child{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.benchrow{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px 0;border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:11px}
+.benchrow strong{color:var(--acc);font-weight:500}
+.labstatus{font-family:var(--mono);font-size:10px;color:var(--faint);min-height:18px;margin-top:9px}
+.compat{margin-top:12px;padding:10px;border-left:2px solid var(--ok);background:var(--bg2);font-size:12px;color:var(--dim)}
+@media(max-width:680px){.labgrid{grid-template-columns:1fr}.tabbar button{letter-spacing:.08em;font-size:9px}}
+
 /* truth */
 .matrix{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
 .matrix th{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
@@ -250,6 +265,15 @@ audio{width:100%;margin-top:12px;display:none}
 
     <div class="wbpanel" id="wb-chat">
       <div class="thread" id="thread"></div>
+      <details style="margin-bottom:8px;border:1px solid var(--line);border-radius:4px;padding:9px 11px">
+        <summary class="label" style="cursor:pointer">PROMPT LAB CONTROLS</summary>
+        <div class="specgrid" style="margin-top:10px">
+          <label class="spec"><span class="label">TEMPERATURE</span><input type="range" id="chattemp" min="0" max="1.5" step="0.1" value="0.7"><span class="v" id="chattempv">0.7</span></label>
+          <label class="spec"><span class="label">MAX NEW TOKENS</span><input type="range" id="chatmax" min="32" max="768" step="32" value="384"><span class="v" id="chatmaxv">384</span></label>
+          <label class="spec"><span class="label">TOP P</span><input type="range" id="chattopp" min="0.1" max="1" step="0.05" value="0.9"><span class="v" id="chattoppv">0.9</span></label>
+          <label class="spec"><span class="label">SYSTEM PROMPT</span><input id="chatsystem" value="You are a helpful, concise assistant." autocomplete="off"></label>
+        </div>
+      </details>
       <div class="composer">
         <input id="chatin" placeholder="Say something. It never leaves this device." autocomplete="off">
         <button class="btn solid" id="chatsend">Send</button>
@@ -322,6 +346,41 @@ audio{width:100%;margin-top:12px;display:none}
     </div>
   </section>
 
+  <!-- LAB -->
+  <section class="view" id="view-lab">
+    <div class="hero">
+      <div class="label">POCKET LAB</div>
+      <h1>Measure it. <em>Bring your own model.</em></h1>
+      <p>No leaderboard guesses. Benchmark models on this device, then load any public Hugging Face text-generation model that is actually packaged for Transformers.js.</p>
+    </div>
+    <div class="labgrid">
+      <div class="labcard">
+        <div class="label">MODEL BENCHMARK</div>
+        <h2>Tokens per second, here.</h2>
+        <p>Selected models download if needed, warm up once, then generate the same 48-token prompt. Runs one at a time so a phone does not hold several LLMs in memory.</p>
+        <div class="checklist" id="benchlist"></div>
+        <button class="btn solid" id="benchrun">Run selected</button>
+        <button class="btn ghost" id="benchstop" disabled>Stop after current</button>
+        <div class="labstatus" id="benchstatus">Pick models. Downloads can be large.</div>
+        <div id="benchresults"></div>
+      </div>
+      <div class="labcard">
+        <div class="label">HUGGING FACE LOADER · WEBGPU</div>
+        <h2>Paste a model repo.</h2>
+        <p>Public, ungated text-generation models only. The repo must contain browser-ready ONNX weights and tokenizer files. Raw PyTorch, Safetensors-only, GGUF, gated, and remote-code models cannot load in a browser.</p>
+        <div class="formrow">
+          <input id="hfrepo" placeholder="onnx-community/SmolLM2-360M-Instruct-ONNX" autocomplete="off" spellcheck="false">
+          <select id="hfdtype"><option value="q4f16">q4f16 - fastest, needs shader-f16</option><option value="q4">q4 - widest WebGPU fit</option><option value="fp16">fp16 - large, high quality</option></select>
+          <button class="btn solid" id="hfload">Load on WebGPU</button>
+          <div class="pbar on" id="hfbar"><i></i></div>
+          <div class="labstatus" id="hfstatus">Waiting for a compatible repo.</div>
+        </div>
+        <div class="compat">This is the honest browser version of “load any model”: any <b>compatible Hugging Face ONNX text-generation repo</b>, within this device's memory. GGUF remains a native-app format and is not silently converted or uploaded.</div>
+      </div>
+    </div>
+    <div class="footnote">Benchmarks stay in this browser. Encrypted mode saves results inside the same AES-GCM vault; session mode saves nothing.</div>
+  </section>
+
   <!-- TRUTH -->
   <section class="view" id="view-truth">
     <div class="hero">
@@ -349,6 +408,7 @@ audio{width:100%;margin-top:12px;display:none}
   <button data-view="probe" class="on"><span class="tick"></span>Probe</button>
   <button data-view="models"><span class="tick"></span>Models</button>
   <button data-view="work"><span class="tick"></span>Work</button>
+  <button data-view="lab"><span class="tick"></span>Lab</button>
   <button data-view="truth"><span class="tick"></span>Truth</button>
 </nav>
 
@@ -372,7 +432,8 @@ const S = {
   engines: {},        // task -> {pipe, model}
   chatModel: null, asrModel: null,
   history: [],        // chat messages for active chat model
-  store: { history: {}, settings: {} },
+  benchStop: false,
+  store: { history: {}, settings: {}, benchmarks: [] },
   busy: false,
 };
 
@@ -570,7 +631,7 @@ function fitAll(){
     chip.className='fit chip '+f; chip.textContent=FITTXT[f];
   });
 }
-function findModel(id){ for(const g of CATALOG) for(const m of g.items) if(m.id===id) return m; return null; }
+function findModel(id){ for(const g of CATALOG) for(const m of g.items) if(m.id===id) return m; if(S.customModel&&S.customModel.id===id)return S.customModel; return null; }
 function renderCatalog(){
   $('#catalog').innerHTML=CATALOG.map(g=>'<div class="group"><h2>'+esc(g.group)+'</h2>'+g.items.map(m=>
     '<div class="card" data-mid="'+m.id+'">'+
@@ -720,6 +781,7 @@ function addMsg(kind, text, silent){
   $('#thread').appendChild(d); d.scrollIntoView({block:'end'});
   return d;
 }
+['chattemp','chatmax','chattopp'].forEach(id=>$('#'+id).oninput=e=>$('#'+id+'v').textContent=e.target.value);
 $('#chatsend').onclick=sendChat;
 $('#chatin').addEventListener('keydown',e=>{ if(e.key==='Enter')sendChat(); });
 async function sendChat(){
@@ -734,8 +796,9 @@ async function sendChat(){
   try{
     const streamer=new TextStreamer(eng.pipe.tokenizer, {skip_prompt:true, skip_special_tokens:true,
       callback_function:t=>{ if(first==null)first=performance.now(); out+=t; tok++; bubble.textContent=out; bubble.scrollIntoView({block:'end'}); }});
-    const messages=S.history.slice(-12).map(m=>({role:m.role, content:m.content}));
-    await eng.pipe(messages, {max_new_tokens:384, do_sample:true, temperature:0.7, top_p:0.9, repetition_penalty:1.15, streamer});
+    const messages=[{role:'system',content:$('#chatsystem').value.trim()||'You are a helpful assistant.'},...S.history.slice(-12).map(m=>({role:m.role, content:m.content}))];
+    const temp=Number($('#chattemp').value), maxTok=Number($('#chatmax').value), topP=Number($('#chattopp').value);
+    await eng.pipe(messages, {max_new_tokens:maxTok, do_sample:temp>0, temperature:Math.max(temp,.01), top_p:topP, repetition_penalty:1.15, streamer});
     const dt=(performance.now()-t0)/1000;
     stats.textContent=tok+' tokens in '+dt.toFixed(1)+'s - '+(tok/dt).toFixed(1)+' tok/s on '+(devPick()==='webgpu'?'GPU':'CPU');
     S.history.push({role:'assistant', content:out});
@@ -743,6 +806,58 @@ async function sendChat(){
   }catch(e){ bubble.textContent='(generation failed: '+(e.message||e)+')'; stats.textContent=''; }
   S.busy=false;
 }
+
+/* ---------- pocket lab: real device benchmark + custom HF model ---------- */
+const BENCH_IDS=['chat135','chat360','chatq05','chatq15'];
+function renderBenchList(){
+  $('#benchlist').innerHTML=BENCH_IDS.map((id,i)=>{const m=findModel(id);return '<label class="checkrow"><input type="checkbox" value="'+id+'" '+(i<2?'checked':'')+'><span>'+esc(m.name)+'</span><span>'+m.size+'</span></label>';}).join('');
+  renderBenchResults();
+}
+function renderBenchResults(){
+  const rs=(S.store.benchmarks||[]).slice(-12).reverse();
+  $('#benchresults').innerHTML=rs.length?rs.map(r=>'<div class="benchrow"><span>'+esc(r.name)+'<br><span style="color:var(--faint)">'+esc(r.engine)+' · '+new Date(r.at).toLocaleString()+'</span></span><strong>'+r.tps.toFixed(1)+' tok/s</strong></div>').join(''):'';
+}
+async function benchmarkOne(m){
+  const status=$('#benchstatus'); let pipe=null;
+  status.textContent='loading '+m.name+' ('+m.size+')…';
+  const tLoad=performance.now(); pipe=await makePipe('chat',m,p=>{if(p.status==='progress'&&p.total)status.textContent='downloading '+m.name+' · '+Math.round(100*p.loaded/p.total)+'%';});
+  status.textContent='warming '+m.name+'…';
+  await pipe([{role:'user',content:'Reply with exactly one word: ready'}],{max_new_tokens:3,do_sample:false});
+  let ticks=0; const streamer=new TextStreamer(pipe.tokenizer,{skip_prompt:true,skip_special_tokens:true,callback_function:()=>ticks++});
+  status.textContent='timing '+m.name+'…'; const t0=performance.now();
+  await pipe([{role:'user',content:'In plain language, explain why local AI privacy matters.'}],{max_new_tokens:48,do_sample:false,streamer});
+  const sec=(performance.now()-t0)/1000, tps=ticks/Math.max(sec,.001);
+  if(pipe.dispose)await pipe.dispose();
+  return {id:m.id,name:m.name,tps,seconds:sec,tokens:ticks,engine:devPick()==='webgpu'?'WebGPU':'WASM CPU',loadSeconds:(performance.now()-tLoad)/1000,at:new Date().toISOString()};
+}
+$('#benchrun').onclick=async()=>{
+  if(S.busy)return toast('another model is busy');
+  const ids=$$('#benchlist input:checked').map(x=>x.value); if(!ids.length)return toast('pick at least one model');
+  S.busy=true; S.benchStop=false; $('#benchrun').disabled=true; $('#benchstop').disabled=false; setPill('live','BENCH');
+  for(const id of ids){
+    if(S.benchStop)break;
+    try{const r=await benchmarkOne(findModel(id)); S.store.benchmarks=(S.store.benchmarks||[]).concat(r).slice(-40); if(S.saveMode==='enc')await persist(); renderBenchResults();}
+    catch(e){$('#benchstatus').textContent=findModel(id).name+' failed: '+(e.message||e);}
+  }
+  $('#benchstatus').textContent=S.benchStop?'stopped after current model':'benchmark complete · results measured on this device';
+  $('#benchrun').disabled=false; $('#benchstop').disabled=true; S.busy=false; setPill(Object.keys(S.engines).length?'live':'idle',Object.keys(S.engines).length?'ON-DEVICE':'IDLE');
+};
+$('#benchstop').onclick=()=>{S.benchStop=true; $('#benchstatus').textContent='will stop after current model';};
+function validHFRepo(v){return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(v)&&v.length<160;}
+$('#hfload').onclick=async()=>{
+  if(S.busy)return toast('another model is busy');
+  const repo=$('#hfrepo').value.trim(); if(!validHFRepo(repo))return toast('use owner/repository');
+  if(!(S.probe&&S.probe.webgpu)){ $('#hfstatus').textContent='Blocked honestly: this loader needs WebGPU. Shelf models still use the WASM fallback.'; return; }
+  const m={id:'custom-'+repo.replace(/[^a-z0-9]/gi,'-'),task:'chat',name:repo.split('/').pop(),repo,params:'custom',size:'repo-defined',tier:4,blurb:'User-supplied Hugging Face model'};
+  S.busy=true; S.customModel=m; $('#hfload').disabled=true; setPill('live','LOADING'); const fill=$('#hfbar i'); fill.style.width='2%';
+  try{
+    if(S.engines.chat)await dropEngine('chat');
+    const dtype=$('#hfdtype').value;
+    const pipe=await pipeline('text-generation',repo,{device:'webgpu',dtype,progress_callback:p=>{if(p.status==='progress'&&p.total){const pc=Math.round(100*p.loaded/p.total);fill.style.width=pc+'%';$('#hfstatus').textContent='downloading '+p.file+' · '+pc+'%';}else if(p.status==='initiate')$('#hfstatus').textContent='checking '+p.file;}});
+    S.engines.chat={pipe,model:m}; fill.style.width='100%'; $('#hfstatus').textContent='ready · '+repo+' · WebGPU '+dtype; setPill('live','ON-DEVICE'); openWorkbench(m);
+  }catch(e){console.error(e); $('#hfstatus').textContent='Not compatible or did not fit: '+(e.message||e); setPill('idle','IDLE');}
+  finally{S.busy=false;$('#hfload').disabled=false;}
+};
 
 /* ---------- asr ---------- */
 let mediaRec=null, recChunks=[];
@@ -886,6 +1001,7 @@ function renderTruth(p){
 
 /* ---------- boot ---------- */
 renderCatalog();
+renderBenchList();
 runProbe();
 netState();
 lockInit();
@@ -894,3 +1010,4 @@ if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catc
 </script>
 </body>
 </html>
+
