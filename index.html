@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#191512">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.huggingface.co https://cdn-lfs-eu-1.huggingface.co https://cas-bridge.xethub.hf.co https://transfer.xethub.hf.co https://cdn.jsdelivr.net; worker-src 'self' blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:">
+<title>EDGE//AI - on-device inference, any phone</title>
+<style>
+:root{
+  --bg:#191512; --bg2:#14110d; --panel:#201a13; --panel2:#261f16;
+  --ink:#ece3d0; --dim:#a8977e; --faint:#6f6250;
+  --line:#372d1f; --line2:#2a2318;
+  --acc:#ff5a1f; --acc-soft:rgba(255,90,31,.12); --acc-dim:#9c4522;
+  --ok:#d8a24a; --bad:#c94f38;
+  --serif:Georgia,'Times New Roman',serif;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;min-height:100vh;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+::selection{background:var(--acc);color:#14110d}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:10px 12px;width:100%;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--acc-dim)}
+a{color:var(--acc);text-decoration:none}
+.mono{font-family:var(--mono)}
+.label{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+
+/* topbar */
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(25,21,18,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line2)}
+.wordmark{font-family:var(--serif);font-size:20px;letter-spacing:.02em;white-space:nowrap}
+.wordmark em{font-style:italic;color:var(--acc)}
+.topbar .spacer{flex:1}
+.pill{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--line);border-radius:99px;padding:4px 10px;color:var(--dim);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.pill .dot{width:6px;height:6px;border-radius:99px;background:var(--faint)}
+.pill.live{border-color:var(--acc-dim);color:var(--acc)}
+.pill.live .dot{background:var(--acc);animation:pulse 2s infinite}
+.pill.off{border-color:var(--ok);color:var(--ok)}
+.pill.off .dot{background:var(--ok)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.iconbtn{border:1px solid var(--line);border-radius:3px;padding:6px 10px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.iconbtn:active{background:var(--panel2)}
+
+/* layout */
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+.view{display:none;padding-top:22px;animation:fade .25s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* tabbar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:rgba(20,17,13,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line2);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar button{flex:1;padding:12px 4px 10px;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);display:flex;flex-direction:column;align-items:center;gap:3px}
+.tabbar button .tick{width:14px;height:2px;background:transparent}
+.tabbar button.on{color:var(--acc)}
+.tabbar button.on .tick{background:var(--acc)}
+
+/* hero */
+.hero{padding:26px 0 8px;border-bottom:1px solid var(--line2);margin-bottom:20px}
+.hero h1{font-family:var(--serif);font-weight:400;font-size:clamp(28px,7vw,44px);line-height:1.12;letter-spacing:-.01em}
+.hero h1 em{font-style:italic;color:var(--acc)}
+.hero p{color:var(--dim);max-width:560px;margin-top:12px;font-size:14px}
+.hero .row{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 20px}
+
+/* probe */
+.verdict{border:1px solid var(--line);border-radius:4px;padding:20px;background:linear-gradient(180deg,var(--panel),var(--bg2));position:relative;overflow:hidden}
+.verdict::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc)}
+.verdict .big{font-family:var(--serif);font-size:clamp(20px,5vw,28px);line-height:1.2;margin:6px 0 8px}
+.verdict .sub{color:var(--dim);font-size:13px;max-width:520px}
+.specgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line2);border:1px solid var(--line2);border-radius:4px;overflow:hidden;margin-top:14px}
+.spec{background:var(--bg2);padding:12px 14px}
+.spec .v{font-family:var(--mono);font-size:13px;margin-top:3px;color:var(--ink)}
+.spec .v.good{color:var(--acc)}
+.spec .v.meh{color:var(--ok)}
+@media(max-width:520px){.specgrid{grid-template-columns:1fr}}
+.engrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line2);font-size:13px}
+.engrow:last-child{border-bottom:none}
+.engrow .name{font-family:var(--mono);font-size:11px;letter-spacing:.08em;width:130px;flex-shrink:0;color:var(--dim)}
+.chip{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;border-radius:99px;padding:3px 9px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.chip.yes{border-color:var(--acc-dim);color:var(--acc)}
+.chip.part{border-color:var(--ok);color:var(--ok)}
+.chip.no{color:var(--faint)}
+
+/* catalog */
+.group{margin-bottom:26px}
+.group>h2{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.group>h2::after{content:"";flex:1;height:1px;background:var(--line2)}
+.card{border:1px solid var(--line);border-radius:4px;background:var(--panel);padding:14px 14px 12px;margin-bottom:10px}
+.card .head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.card .name{font-weight:600;font-size:15px}
+.card .meta{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.card .fit{margin-left:auto}
+.card .blurb{color:var(--dim);font-size:13px;margin-top:6px}
+.card .foot{display:flex;align-items:center;gap:10px;margin-top:12px}
+.btn{border:1px solid var(--acc-dim);color:var(--acc);border-radius:3px;padding:8px 16px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.btn:active{background:var(--acc-soft)}
+.btn.ghost{border-color:var(--line);color:var(--dim)}
+.btn.solid{background:var(--acc);border-color:var(--acc);color:#17130e;font-weight:600}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn.sm{padding:5px 10px;font-size:10px}
+.pbar{flex:1;height:3px;background:var(--line2);border-radius:99px;overflow:hidden;display:none}
+.pbar.on{display:block}
+.pbar i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+.pct{font-family:var(--mono);font-size:10px;color:var(--faint);min-width:38px;text-align:right;display:none}
+.pct.on{display:block}
+.card.loading .pbar,.card.loading .pct{display:block}
+.card.loading .pbar{display:block}
+.fit.smooth{color:var(--acc);border-color:var(--acc-dim)}
+.fit.ok{color:var(--ok);border-color:rgba(216,162,74,.4)}
+.fit.slow{color:var(--ok);border-color:rgba(216,162,74,.4)}
+.fit.risky{color:var(--bad);border-color:rgba(201,79,56,.4)}
+.card .cachedot{display:none;font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--ok);text-transform:uppercase}
+.card.iscached .cachedot{display:inline}
+.rec{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--acc);text-transform:uppercase}
+
+/* workbench */
+.wbhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line2);padding-bottom:12px;margin-bottom:14px}
+.wbhead h2{font-family:var(--serif);font-size:24px;font-weight:400}
+.wbhead .meta{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.wbpanel{display:none}
+.wbpanel.on{display:block}
+.thread{display:flex;flex-direction:column;gap:12px;margin-bottom:14px}
+.msg{max-width:88%;padding:10px 13px;border-radius:4px;font-size:14px;white-space:pre-wrap;word-break:break-word}
+.msg.user{align-self:flex-end;background:var(--panel2);border:1px solid var(--line);border-right:2px solid var(--acc)}
+.msg.bot{align-self:flex-start;border-left:2px solid var(--line);padding-left:12px;color:var(--ink)}
+.msg.sys{align-self:center;background:none;border:none;color:var(--faint);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-align:center}
+.composer{display:flex;gap:8px;position:sticky;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--bg);padding:8px 0}
+.composer input{flex:1}
+.statline{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.06em;margin-top:2px}
+.outbox{border:1px solid var(--line);border-radius:4px;background:var(--bg2);padding:14px;font-size:14px;white-space:pre-wrap;word-break:break-word;margin-top:12px;min-height:54px}
+.outbox:empty::before{content:"Output appears here";color:var(--faint);font-size:13px}
+.formrow{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+textarea{min-height:88px;resize:vertical}
+.kv{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:12px;padding:8px 0;border-bottom:1px solid var(--line2)}
+.kv:last-child{border-bottom:none}
+.kv b{font-weight:400;color:var(--ink)}
+.kv span{color:var(--faint)}
+.imgprev{max-width:100%;border-radius:4px;border:1px solid var(--line);margin-top:12px;display:none}
+audio{width:100%;margin-top:12px;display:none}
+.simbar{height:8px;background:var(--line2);border-radius:99px;overflow:hidden;margin-top:8px}
+.simbar i{display:block;height:100%;background:var(--acc);width:0}
+
+/* truth */
+.matrix{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+.matrix th{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
+.matrix td{padding:10px 8px;border-bottom:1px solid var(--line2);vertical-align:top;color:var(--dim)}
+.matrix td:first-child{color:var(--ink);white-space:nowrap}
+.matrix tr.you td{background:var(--acc-soft)}
+.notes{margin-top:22px;display:flex;flex-direction:column;gap:0}
+.note{padding:14px 0;border-top:1px solid var(--line2)}
+.note h3{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);margin-bottom:6px}
+.note p{color:var(--dim);font-size:13px}
+.note p b{color:var(--ink);font-weight:600}
+
+/* lock overlay */
+.lock{position:fixed;inset:0;z-index:100;background:var(--bg2);display:none;align-items:center;justify-content:center;padding:24px}
+.lock.on{display:flex}
+.lockbox{max-width:400px;width:100%;text-align:left}
+.lockbox h1{font-family:var(--serif);font-weight:400;font-size:30px;margin:10px 0 8px}
+.lockbox h1 em{font-style:italic;color:var(--acc)}
+.lockbox p{color:var(--dim);font-size:13px;margin-bottom:18px}
+.lockbox .formrow{margin-top:0}
+.lockerr{color:var(--bad);font-family:var(--mono);font-size:11px;min-height:16px;margin-top:8px}
+
+/* confirm bar + toast */
+.confirm{position:fixed;left:16px;right:16px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:60;background:var(--panel2);border:1px solid var(--acc-dim);border-radius:4px;padding:12px;display:none;align-items:center;gap:10px;font-size:13px}
+.confirm.on{display:flex}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom));z-index:70;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:10px 16px;font-family:var(--mono);font-size:11px;color:var(--ink);display:none;max-width:92vw}
+.toast.on{display:block}
+.empty{color:var(--faint);font-size:13px;padding:18px 0;text-align:center}
+.footnote{margin-top:34px;padding-top:14px;border-top:1px solid var(--line2);color:var(--faint);font-family:var(--mono);font-size:10px;letter-spacing:.08em;line-height:1.9}
+</style>
+</head>
+<body>
+
+<div class="lock" id="lock">
+  <div class="lockbox">
+    <div class="label">EDGE//AI - LOCAL VAULT</div>
+    <h1>Your chats stay <em>yours</em>.</h1>
+    <p id="locksub">Everything on this page runs on your device. History is encrypted with a passphrase only you know (AES-GCM, key derived in this tab). Or skip it and nothing is saved at all.</p>
+    <div class="formrow">
+      <input type="password" id="lockpass" placeholder="Passphrase" autocomplete="off">
+      <input type="password" id="lockpass2" placeholder="Repeat passphrase (first time only)" autocomplete="off" style="display:none">
+      <button class="btn solid" id="unlockbtn">Unlock</button>
+      <button class="btn ghost" id="sessionbtn">Session only - save nothing</button>
+      <div class="lockerr" id="lockerr"></div>
+    </div>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="wordmark">EDGE<em>//</em>AI</div>
+  <div class="spacer"></div>
+  <div class="pill" id="enginepill"><span class="dot"></span><span id="enginepilltxt">IDLE</span></div>
+  <div class="pill off" id="offlinepill" style="display:none"><span class="dot"></span>OFFLINE-OK</div>
+  <button class="iconbtn" id="lockbtn" style="display:none">Lock</button>
+</header>
+
+<main class="wrap">
+
+  <!-- PROBE -->
+  <section class="view on" id="view-probe">
+    <div class="hero">
+      <div class="label">DEVICE PROBE</div>
+      <h1>What can <em>this</em> phone actually run?</h1>
+      <p>A live read of your hardware from inside the browser. No benchmark theater - this decides which models below will feel instant, which will crawl, and which will not fit at all.</p>
+    </div>
+    <div class="verdict">
+      <div class="label" id="verdictlabel">SCANNING</div>
+      <div class="big" id="verdictbig">Reading your hardware...</div>
+      <div class="sub" id="verdictsub"></div>
+    </div>
+    <div class="specgrid" id="specgrid"></div>
+    <div style="margin-top:22px">
+      <div class="label" style="margin-bottom:8px">INFERENCE ENGINES AVAILABLE</div>
+      <div id="englist"></div>
+    </div>
+    <div class="footnote" id="probefoot"></div>
+  </section>
+
+  <!-- MODELS -->
+  <section class="view" id="view-models">
+    <div class="hero">
+      <div class="label">MODEL SHELF</div>
+      <h1>Small models, <em>real</em> AI.</h1>
+      <p>Every model here downloads once from Hugging Face into your browser cache, then runs entirely on this device. Sizes are honest - a big download on hotel wifi is a commitment.</p>
+    </div>
+    <div id="catalog"></div>
+    <div style="margin-top:8px">
+      <div class="label" style="margin-bottom:8px">MODEL CACHE</div>
+      <div class="card">
+        <div id="cacheinfo" class="blurb">Checking browser cache...</div>
+        <div class="foot">
+          <button class="btn ghost sm" id="cacheclear">Delete all cached models</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WORK -->
+  <section class="view" id="view-work">
+    <div class="wbhead">
+      <h2 id="wbtitle">Workbench</h2>
+      <span class="meta" id="wbmeta">nothing loaded</span>
+      <div class="spacer" style="flex:1"></div>
+      <button class="btn ghost sm" id="unloadbtn" style="display:none">Unload</button>
+    </div>
+    <div id="wbempty" class="empty">Load a model from the shelf. It stays in memory until you unload it or close the tab.</div>
+
+    <div class="wbpanel" id="wb-chat">
+      <div class="thread" id="thread"></div>
+      <div class="composer">
+        <input id="chatin" placeholder="Say something. It never leaves this device." autocomplete="off">
+        <button class="btn solid" id="chatsend">Send</button>
+      </div>
+      <div class="statline" id="chatstats"></div>
+    </div>
+
+    <div class="wbpanel" id="wb-asr">
+      <p class="blurb" style="color:var(--dim);font-size:13px">Record speech with your mic. Audio is transcribed on-device - it is never uploaded.</p>
+      <div class="formrow">
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="asrrec">Record</button>
+          <button class="btn ghost" id="asrstop" disabled>Stop + transcribe</button>
+        </div>
+        <div class="statline" id="asrstatus"></div>
+        <div class="outbox" id="asrout"></div>
+      </div>
+    </div>
+
+    <div class="wbpanel" id="wb-translate">
+      <div class="formrow">
+        <textarea id="trin" placeholder="Type English text..."></textarea>
+        <button class="btn" id="trgo">Translate</button>
+        <div class="outbox" id="trout"></div>
+        <div class="statline" id="trstats"></div>
+      </div>
+    </div>
+
+    <div class="wbpanel" id="wb-embed">
+      <p class="blurb" style="color:var(--dim);font-size:13px">Two sentences go in, a meaning-similarity score comes out. This is the engine behind semantic search, running on your phone.</p>
+      <div class="formrow">
+        <input id="emb1" placeholder="First sentence" value="The cat sat on the mat">
+        <input id="emb2" placeholder="Second sentence" value="A kitten rested on the rug">
+        <button class="btn" id="embgo">Compare meaning</button>
+        <div>
+          <div class="label">SIMILARITY <span id="embpct" class="mono" style="color:var(--acc)"></span></div>
+          <div class="simbar"><i id="embfill"></i></div>
+        </div>
+        <div class="statline" id="embstats"></div>
+      </div>
+    </div>
+
+    <div class="wbpanel" id="wb-vision">
+      <p class="blurb" style="color:var(--dim);font-size:13px">Point it at a photo. Top-5 guesses, computed here.</p>
+      <div class="formrow">
+        <input type="file" id="visfile" accept="image/*" style="padding:8px">
+        <img class="imgprev" id="visprev" alt="">
+        <div class="outbox" id="visout"></div>
+        <div class="statline" id="visstats"></div>
+      </div>
+    </div>
+
+    <div class="wbpanel" id="wb-sentiment">
+      <div class="formrow">
+        <textarea id="sentin" placeholder="A sentence with a mood..."></textarea>
+        <button class="btn" id="sentgo">Read the mood</button>
+        <div class="outbox" id="sentout"></div>
+        <div class="statline" id="sentstats"></div>
+      </div>
+    </div>
+
+    <div class="wbpanel" id="wb-tts">
+      <p class="blurb" style="color:var(--dim);font-size:13px">Text to speech, synthesized on-device. Experimental - first run builds voices slowly on phones.</p>
+      <div class="formrow">
+        <textarea id="ttsin" placeholder="Something worth saying out loud...">On-device AI means your words never leave your hands.</textarea>
+        <button class="btn" id="ttsgo">Speak</button>
+        <audio id="ttsaudio" controls></audio>
+        <div class="statline" id="ttsstats"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUTH -->
+  <section class="view" id="view-truth">
+    <div class="hero">
+      <div class="label">THE HONEST PART</div>
+      <h1>What runs where, <em>exactly</em>.</h1>
+      <p>"Any AI, any phone" has a real edge and this page draws it. No marketing version.</p>
+    </div>
+    <table class="matrix" id="truthmatrix">
+      <thead><tr><th>Your situation</th><th>Engine</th><th>Reality</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="notes">
+      <div class="note"><h3>Offline is the proof</h3><p>Models download once from Hugging Face into the browser cache. After that, inference needs <b>zero network</b>. Load a model, switch on airplane mode, keep chatting. That is the whole point of edge AI.</p></div>
+      <div class="note"><h3>What cannot run here</h3><p>GPT-4 / Claude / Gemini-class models: they are hundreds of gigabytes and live in datacenters. No phone runs them, on-device, in 2026 - anyone claiming otherwise is proxying to a server. Also out: most models above ~3B parameters (RAM), image and video generation on mid-range phones, and gated models that require a Hugging Face login.</p></div>
+      <div class="note"><h3>The iPhone fine print</h3><p>WebGPU reaches iPhones only with iOS 26+ in Safari, and every iOS browser is Safari's engine underneath - Chrome on iPhone has exactly the same ceiling. On older iOS you get the WASM fallback: everything still works, chat models just think slowly.</p></div>
+      <div class="note"><h3>Why single-threaded on WASM</h3><p>Multithreaded WASM needs cross-origin isolation headers that static hosting cannot send. So the CPU fallback uses one core. WebGPU does not have this limit - another reason the GPU path feels like a different machine.</p></div>
+      <div class="note"><h3>Privacy, in one breath</h3><p>No account, no API key, no analytics, no server of ours anywhere. The only network calls are model files from huggingface.co, and only when you press Load. History is encrypted with your passphrase or not stored at all.</p></div>
+    </div>
+    <div class="footnote">EDGE//AI - on-device inference for any phone<br>Engine: Transformers.js (Hugging Face) + ONNX Runtime Web, WebGPU with WASM fallback<br>No backend. No key. No account.</div>
+  </section>
+
+</main>
+
+<nav class="tabbar">
+  <button data-view="probe" class="on"><span class="tick"></span>Probe</button>
+  <button data-view="models"><span class="tick"></span>Models</button>
+  <button data-view="work"><span class="tick"></span>Work</button>
+  <button data-view="truth"><span class="tick"></span>Truth</button>
+</nav>
+
+<div class="confirm" id="confirm">
+  <span id="confirmtext" style="flex:1"></span>
+  <button class="btn sm solid" id="confirmyes">Yes</button>
+  <button class="btn sm ghost" id="confirmno">Cancel</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { pipeline, env, TextStreamer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
+
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const S = {
+  probe: null, key: null, saveMode: 'none', // 'enc' | 'none'
+  engines: {},        // task -> {pipe, model}
+  chatModel: null, asrModel: null,
+  history: [],        // chat messages for active chat model
+  store: { history: {}, settings: {} },
+  busy: false,
+};
+
+/* ---------- utils ---------- */
+function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
+function esc(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtBytes(b){ if(b==null)return'?'; const u=['B','KB','MB','GB']; let i=0; while(b>=1024&&i<3){b/=1024;i++;} return b.toFixed(i?1:0)+' '+u[i]; }
+let confirmCb=null;
+function askConfirm(text, cb){ $('#confirmtext').textContent=text; $('#confirm').classList.add('on'); confirmCb=cb; }
+$('#confirmyes').onclick=()=>{ $('#confirm').classList.remove('on'); if(confirmCb)confirmCb(); };
+$('#confirmno').onclick=()=>{ $('#confirm').classList.remove('on'); confirmCb=null; };
+
+/* tabs */
+$$('.tabbar button').forEach(b=>b.onclick=()=>{
+  $$('.tabbar button').forEach(x=>x.classList.toggle('on',x===b));
+  $$('.view').forEach(v=>v.classList.toggle('on', v.id==='view-'+b.dataset.view));
+  if(b.dataset.view==='models') refreshCacheInfo();
+});
+
+function setPill(state, txt){ const p=$('#enginepill'); p.classList.toggle('live', state==='live'); $('#enginepilltxt').textContent=txt; }
+window.addEventListener('online', netState); window.addEventListener('offline', netState);
+function netState(){ $('#offlinepill').style.display = navigator.onLine ? 'none':'flex'; }
+
+/* ---------- crypto / lock ---------- */
+const LS_LOCK='edge_lock_v1', LS_DATA='edge_data_v1';
+async function deriveKey(pass, salt){
+  const enc=new TextEncoder();
+  const base=await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:250000, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+}
+async function encJSON(key, obj){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, new TextEncoder().encode(JSON.stringify(obj)));
+  return {iv:Array.from(iv), ct:Array.from(new Uint8Array(ct))};
+}
+async function decJSON(key, blob){
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM', iv:new Uint8Array(blob.iv)}, key, new Uint8Array(blob.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function b64(bytes){ return btoa(String.fromCharCode(...bytes)); }
+function unb64(s){ return Uint8Array.from(atob(s), c=>c.charCodeAt(0)); }
+
+function lockInit(){
+  const has=!!localStorage.getItem(LS_LOCK);
+  if(has){ $('#locksub').textContent='This device has an encrypted EDGE//AI vault. Enter its passphrase to restore your history, or start a session that saves nothing.'; $('#unlockbtn').textContent='Unlock vault'; }
+  else { $('#lockpass2').style.display='block'; $('#unlockbtn').textContent='Create vault + unlock'; }
+  $('#lock').classList.add('on');
+  $('#lockpass').focus();
+}
+$('#unlockbtn').onclick=async ()=>{
+  const p1=$('#lockpass').value, p2=$('#lockpass2').value;
+  $('#lockerr').textContent='';
+  if(!p1){ $('#lockerr').textContent='passphrase required'; return; }
+  try{
+    const raw=localStorage.getItem(LS_LOCK);
+    if(raw){
+      const rec=JSON.parse(raw);
+      const key=await deriveKey(p1, unb64(rec.salt));
+      const check=await decJSON(key, rec.verifier).catch(()=>null);
+      if(check!=='EDGEOK'){ $('#lockerr').textContent='wrong passphrase'; return; }
+      S.key=key; S.saveMode='enc';
+      const data=localStorage.getItem(LS_DATA);
+      if(data){ try{ S.store=await decJSON(key, JSON.parse(data)); }catch(e){ S.store={history:{},settings:{}}; } }
+    }else{
+      if(p1!==p2){ $('#lockerr').textContent='passphrases do not match'; return; }
+      if(p1.length<4){ $('#lockerr').textContent='use at least 4 characters'; return; }
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      const key=await deriveKey(p1, salt);
+      const verifier=await encJSON(key,'EDGEOK');
+      localStorage.setItem(LS_LOCK, JSON.stringify({salt:b64(salt), verifier}));
+      S.key=key; S.saveMode='enc'; S.store={history:{},settings:{}};
+      await persist();
+    }
+    enterApp();
+  }catch(e){ $('#lockerr').textContent='crypto failed: '+e.message; }
+};
+$('#sessionbtn').onclick=()=>{ S.saveMode='none'; enterApp(); };
+$('#lockpass').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#unlockbtn').click(); });
+$('#lockpass2').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#unlockbtn').click(); });
+function enterApp(){
+  $('#lock').classList.remove('on');
+  $('#lockbtn').style.display = S.saveMode==='enc' ? 'block':'none';
+  if(S.saveMode==='enc' && S.store.settings.lastTab){ /* keep probe default */ }
+}
+$('#lockbtn').onclick=()=>{ S.key=null; S.history=[]; $('#thread').innerHTML=''; lockInit(); };
+async function persist(){
+  if(S.saveMode!=='enc'||!S.key) return;
+  clearTimeout(S._pt);
+  S._pt=setTimeout(async ()=>{
+    const blob=await encJSON(S.key, S.store);
+    localStorage.setItem(LS_DATA, JSON.stringify(blob));
+  },400);
+}
+/* auto-lock after 10 min idle */
+let idleT=null;
+function bumpIdle(){ if(S.saveMode!=='enc')return; clearTimeout(idleT); idleT=setTimeout(()=>{ if(S.key){ S.key=null; toast('Auto-locked (10 min idle)'); lockInit(); } }, 10*60*1000); }
+['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev, bumpIdle, {passive:true}));
+
+/* ---------- probe ---------- */
+const SIMD_BYTES=new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11]);
+async function runProbe(){
+  const p={webgpu:false,adapter:null,webnn:false,cores:navigator.hardwareConcurrency||0,mem:navigator.deviceMemory||null,
+           simd:WebAssembly.validate(SIMD_BYTES), threads:(typeof SharedArrayBuffer!=='undefined')&&self.crossOriginIsolated===true,
+           storage:null, ua:navigator.userAgent};
+  if('gpu' in navigator){
+    try{ const a=await navigator.gpu.requestAdapter();
+      if(a){ p.webgpu=true; const i=a.info||{}; p.adapter=[i.vendor,i.architecture].filter(Boolean).join(' ')||'adapter ok'; }
+    }catch(e){}
+  }
+  p.webnn = 'ml' in navigator;
+  try{ const est=await navigator.storage.estimate(); if(est&&est.quota) p.storage={used:est.usage||0, quota:est.quota}; }catch(e){}
+  S.probe=p; renderProbe(p); renderTruth(p); fitAll();
+}
+function renderProbe(p){
+  const gpuOk=p.webgpu, ram=p.mem;
+  let big, sub, cls;
+  if(gpuOk && (ram==null||ram>=4)){ cls='GPU CLASS'; big='This device runs chat models on its GPU.';
+    sub='WebGPU is live. Models up to ~1.5B parameters will feel usable; the small ones will feel instant. After download, everything works offline.'; }
+  else if(gpuOk){ cls='GPU CLASS (TIGHT)'; big='GPU path works, memory is the ceiling.';
+    sub='WebGPU is live but this device reports little RAM. Stay at 360M and below.'; }
+  else { cls='CPU CLASS'; big='No GPU path - small models, patience required.';
+    sub='This browser has no WebGPU, so inference falls back to single-threaded WASM. Sentiment, vision, translation and embeddings are fine. Chat works but thinks slowly - stick to 135M/360M.'; }
+  $('#verdictlabel').textContent=cls;
+  $('#verdictbig').textContent=big;
+  $('#verdictsub').textContent=sub;
+  const rows=[
+    ['WEBGPU', p.webgpu?('YES - '+p.adapter):'not available', p.webgpu?'good':''],
+    ['WEBNN', p.webnn?'detected':'not exposed', p.webnn?'meh':''],
+    ['WASM SIMD', p.simd?'yes':'no', p.simd?'good':''],
+    ['WASM THREADS', p.threads?'yes':'no (static host)', ''],
+    ['CPU CORES', String(p.cores||'?'), ''],
+    ['DEVICE RAM', ram?('~'+ram+' GB (browser estimate)'):'not reported', ''],
+    ['STORAGE', p.storage?(fmtBytes(p.storage.used)+' used of '+fmtBytes(p.storage.quota)):'unknown', ''],
+  ];
+  $('#specgrid').innerHTML=rows.map(r=>'<div class="spec"><div class="label">'+r[0]+'</div><div class="v '+r[2]+'">'+esc(r[1])+'</div></div>').join('');
+  const eng=[
+    ['Chat LLMs', p.webgpu?['yes','WebGPU, q4']:['slow','WASM q4 - tiny models only']],
+    ['Speech to text', p.webgpu?['yes','WebGPU']:['yes','WASM - usable']],
+    ['Translation', ['yes', p.webgpu?'WebGPU':'WASM - fine']],
+    ['Embeddings', ['yes', p.webgpu?'WebGPU':'WASM - fine']],
+    ['Vision', ['yes', p.webgpu?'WebGPU':'WASM - fine']],
+    ['Text to speech', p.webgpu?['yes','WebGPU']:['slow','WASM - slow']],
+  ];
+  $('#englist').innerHTML=eng.map(e=>{
+    const chipCls=e[1][0]==='yes'?'yes':(e[1][0]==='slow'?'part':'no');
+    return '<div class="engrow"><span class="name">'+e[0]+'</span><span class="chip '+chipCls+'">'+e[1][0].toUpperCase()+'</span><span style="color:var(--faint);font-size:12px">'+esc(e[1][1])+'</span></div>';
+  }).join('');
+  $('#probefoot').textContent='UA: '+p.ua;
+}
+
+/* ---------- catalog ---------- */
+const CATALOG=[
+ {group:'Chat - small language models', items:[
+  {id:'chat135', task:'chat', name:'SmolLM2 135M Instruct', repo:'onnx-community/SmolLM2-135M-Instruct-ONNX', params:'135M', size:'~180 MB', tier:1, blurb:'The sprinter. Answers in seconds even on modest phones. Expect simple, sometimes shaky reasoning.'},
+  {id:'chat360', task:'chat', name:'SmolLM2 360M Instruct', repo:'onnx-community/SmolLM2-360M-Instruct-ONNX', params:'360M', size:'~390 MB', tier:2, rec:true, blurb:'Best phone balance. Noticeably sharper than 135M for double the download.'},
+  {id:'chatq05', task:'chat', name:'Qwen2.5 0.5B Instruct', repo:'onnx-community/Qwen2.5-0.5B-Instruct', params:'0.5B', size:'~790 MB', tier:3, blurb:'A real jump in instruction-following. Fine on WebGPU, slow on CPU fallback.'},
+  {id:'chatq15', task:'chat', name:'Qwen2.5 1.5B Instruct', repo:'onnx-community/Qwen2.5-1.5B-Instruct', params:'1.5B', size:'~2 GB', tier:4, blurb:'Strongest brain on this shelf. Big phones and laptops with WebGPU only - honest warning.'},
+ ]},
+ {group:'Speech to text', items:[
+  {id:'asrtiny', task:'asr', name:'Whisper tiny', repo:'onnx-community/whisper-tiny', params:'39M', size:'~120 MB', tier:1, blurb:'Multilingual. Fast enough everywhere, including CPU fallback.'},
+  {id:'asrbase', task:'asr', name:'Whisper base (English)', repo:'onnx-community/whisper-base.en', params:'74M', size:'~220 MB', tier:2, blurb:'More accurate English ears for double the size.'},
+ ]},
+ {group:'Translation (from English)', items:[
+  {id:'trhi', task:'translate', name:'English to Hindi', repo:'Xenova/opus-mt-en-hi', params:'77M', size:'~80 MB', tier:1, outlang:'Hindi', blurb:'EN to HI, fully on-device.'},
+  {id:'tres', task:'translate', name:'English to Spanish', repo:'Xenova/opus-mt-en-es', params:'77M', size:'~80 MB', tier:1, outlang:'Spanish', blurb:'EN to ES, fully on-device.'},
+  {id:'trfr', task:'translate', name:'English to French', repo:'Xenova/opus-mt-en-fr', params:'77M', size:'~80 MB', tier:1, outlang:'French', blurb:'EN to FR, fully on-device.'},
+  {id:'trde', task:'translate', name:'English to German', repo:'Xenova/opus-mt-en-de', params:'77M', size:'~80 MB', tier:1, outlang:'German', blurb:'EN to DE, fully on-device.'},
+ ]},
+ {group:'Meaning, vision, voice, mood', items:[
+  {id:'emb', task:'embed', name:'MiniLM-L6 embeddings', repo:'Xenova/all-MiniLM-L6-v2', params:'22M', size:'~23 MB', tier:1, blurb:'Turns sentences into meaning-vectors. The part of semantic search that runs here.'},
+  {id:'vis', task:'vision', name:'MobileNetV4 classifier', repo:'onnx-community/mobilenetv4_conv_small.e2400_r224_in1k', params:'3.8M', size:'~4 MB', tier:1, blurb:'Names what is in a photo. Tiny - downloads in a blink.'},
+  {id:'sent', task:'sentiment', name:'DistilBERT sentiment', repo:'Xenova/distilbert-base-uncased-finetuned-sst-2-english', params:'67M', size:'~65 MB', tier:1, blurb:'Positive or negative, in milliseconds. The classic first model.'},
+  {id:'tts', task:'tts', name:'Kokoro 82M voice', repo:'onnx-community/Kokoro-82M-v1.0-ONNX', params:'82M', size:'~95 MB', tier:2, exp:true, blurb:'Speaks text aloud, synthesized on-device. Experimental on phones.'},
+ ]},
+];
+function fitFor(tier){
+  const p=S.probe; if(!p) return ['...',''];
+  if(p.webgpu){
+    const tight=p.mem!=null&&p.mem<4;
+    if(tier<=1) return ['smooth','smooth'];
+    if(tier===2) return [tight?'ok':'smooth', tight?'ok':'smooth'];
+    if(tier===3) return [tight?'slow':'ok', tight?'slow':'ok'];
+    return [tight?'risky':'slow', tight?'risky':'slow'];
+  }
+  if(tier<=1) return ['slow','slow'];
+  if(tier===2) return ['slow','slow'];
+  return ['risky','risky'];
+}
+const FITTXT={smooth:'smooth here',ok:'works here',slow:'slow here',risky:'won\'t fit well'};
+function fitAll(){
+  $$('.card[data-mid]').forEach(c=>{
+    const m=findModel(c.dataset.mid); if(!m)return;
+    const [f]=fitFor(m.tier);
+    const chip=c.querySelector('.fit');
+    chip.className='fit chip '+f; chip.textContent=FITTXT[f];
+  });
+}
+function findModel(id){ for(const g of CATALOG) for(const m of g.items) if(m.id===id) return m; return null; }
+function renderCatalog(){
+  $('#catalog').innerHTML=CATALOG.map(g=>'<div class="group"><h2>'+esc(g.group)+'</h2>'+g.items.map(m=>
+    '<div class="card" data-mid="'+m.id+'">'+
+      '<div class="head"><span class="name">'+esc(m.name)+'</span>'+
+      '<span class="meta">'+m.params+' - '+m.size+'</span>'+
+      (m.rec?'<span class="rec">phone pick</span>':'')+(m.exp?'<span class="rec" style="color:var(--ok)">experimental</span>':'')+
+      '<span class="cachedot">cached</span>'+
+      '<span class="fit chip"></span></div>'+
+      '<div class="blurb">'+esc(m.blurb)+'</div>'+
+      '<div class="foot"><button class="btn sm loadbtn">Load</button>'+
+      '<div class="pbar"><i></i></div><span class="pct"></span></div>'+
+      '<div class="statline loadnote"></div>'+
+    '</div>').join('')+'</div>').join('');
+  $$('.loadbtn').forEach(b=>b.onclick=()=>loadModel(b.closest('.card').dataset.mid));
+}
+
+/* ---------- engine loader ---------- */
+function devPick(){ return (S.probe&&S.probe.webgpu)?'webgpu':'wasm'; }
+async function makePipe(task, m, onp){
+  const dev=devPick();
+  if(task==='chat'){
+    const dtype= dev==='webgpu' ? 'q4f16' : 'q4';
+    try{ return await pipeline('text-generation', m.repo, {device:dev, dtype, progress_callback:onp}); }
+    catch(e){ return await pipeline('text-generation', m.repo, {device:dev, dtype:'q4', progress_callback:onp}); }
+  }
+  if(task==='asr'){
+    return await pipeline('automatic-speech-recognition', m.repo, {device:dev, dtype:{encoder_model:'fp32', decoder_model_merged:'q4'}, progress_callback:onp});
+  }
+  if(task==='translate') return await pipeline('translation', m.repo, {device:dev, dtype:'q8', progress_callback:onp});
+  if(task==='embed') return await pipeline('feature-extraction', m.repo, {device:dev, dtype:'q8', progress_callback:onp});
+  if(task==='vision') return await pipeline('image-classification', m.repo, {device:dev, dtype:'q8', progress_callback:onp});
+  if(task==='sentiment') return await pipeline('sentiment-analysis', m.repo, {device:dev, dtype:'q8', progress_callback:onp});
+  if(task==='tts') return await pipeline('text-to-speech', m.repo, {device:dev, dtype:'q8', progress_callback:onp});
+  throw new Error('unknown task');
+}
+function progressUI(card){
+  const bar=card.querySelector('.pbar'), fill=bar.querySelector('i'), pct=card.querySelector('.pct'), note=card.querySelector('.loadnote');
+  const files={};
+  bar.classList.add('on'); pct.classList.add('on');
+  return p=>{
+    if(p.status==='progress'&&p.total){ files[p.file]={loaded:p.loaded,total:p.total};
+      let l=0,t=0; for(const k in files){l+=files[k].loaded;t+=files[k].total;}
+      const pc=t?Math.round(100*l/t):0; fill.style.width=pc+'%'; pct.textContent=pc+'%';
+      note.textContent='downloading '+p.file+' - '+fmtBytes(l)+' of '+fmtBytes(t);
+    } else if(p.status==='ready'){ fill.style.width='100%'; pct.textContent='100%'; }
+    else if(p.status==='initiate'){ note.textContent='fetching '+p.file; }
+    else if(p.status==='done'){ note.textContent='compiling / warming up'; }
+  };
+}
+async function loadModel(mid){
+  if(S.busy){ toast('one load at a time'); return; }
+  const m=findModel(mid); if(!m)return;
+  const card=document.querySelector('.card[data-mid="'+mid+'"]');
+  S.busy=true; card.classList.add('loading');
+  const onp=progressUI(card);
+  setPill('live','LOADING');
+  card.querySelector('.loadbtn').disabled=true;
+  try{
+    // exclusive tasks: one chat LLM / one ASR at a time
+    if((m.task==='chat'&&S.engines.chat)||(m.task==='asr'&&S.engines.asr)){ await dropEngine(m.task); }
+    if(S.engines[m.task]&&S.engines[m.task].model.id===m.id){ openWorkbench(m); return; }
+    if(S.engines[m.task]) await dropEngine(m.task);
+    const t0=performance.now();
+    const pipe=await makePipe(m.task, m, onp);
+    S.engines[m.task]={pipe, model:m};
+    card.querySelector('.loadnote').textContent='ready in '+((performance.now()-t0)/1000).toFixed(1)+'s on '+(devPick()==='webgpu'?'GPU (WebGPU)':'CPU (WASM)');
+    card.classList.add('iscached');
+    setPill('live','ON-DEVICE');
+    openWorkbench(m);
+    markCachedBadges();
+  }catch(e){
+    console.error(e);
+    card.querySelector('.loadnote').textContent='failed: '+(e.message||e);
+    setPill('idle','IDLE');
+    toast('Load failed: '+(e.message||e).toString().slice(0,140), 5200);
+  }finally{
+    S.busy=false; card.classList.remove('loading');
+    card.querySelector('.loadbtn').disabled=false;
+    card.querySelector('.pbar').classList.remove('on'); card.querySelector('.pct').classList.remove('on');
+  }
+}
+async function dropEngine(task){
+  const e=S.engines[task]; if(!e)return;
+  try{ if(e.pipe&&e.pipe.dispose) await e.pipe.dispose(); }catch(_){}
+  delete S.engines[task];
+}
+$('#unloadbtn').onclick=async ()=>{
+  const task=$('#unloadbtn').dataset.task; if(!task)return;
+  await dropEngine(task);
+  $$('.wbpanel').forEach(p=>p.classList.remove('on'));
+  $('#wbempty').style.display='block'; $('#unloadbtn').style.display='none';
+  $('#wbmeta').textContent='nothing loaded'; $('#wbtitle').textContent='Workbench';
+  if(!Object.keys(S.engines).length) setPill('idle','IDLE');
+};
+function openWorkbench(m){
+  $$('.tabbar button').forEach(x=>x.classList.toggle('on',x.dataset.view==='work'));
+  $$('.view').forEach(v=>v.classList.toggle('on', v.id==='view-work'));
+  $('#wbempty').style.display='none';
+  $$('.wbpanel').forEach(p=>p.classList.remove('on'));
+  const panel={chat:'wb-chat',asr:'wb-asr',translate:'wb-translate',embed:'wb-embed',vision:'wb-vision',sentiment:'wb-sentiment',tts:'wb-tts'}[m.task];
+  $('#'+panel).classList.add('on');
+  $('#wbtitle').textContent=m.name;
+  $('#wbmeta').textContent=m.repo+' - '+(devPick()==='webgpu'?'WebGPU':'WASM CPU');
+  const ub=$('#unloadbtn'); ub.style.display='inline-block'; ub.dataset.task=m.task;
+  if(m.task==='chat'){ S.chatModel=m; loadChatHistory(); }
+  if(m.task==='asr'){ S.asrModel=m; }
+  if(m.task==='translate'){ $('#trgo').textContent='Translate to '+m.outlang; }
+}
+
+/* ---------- model cache ---------- */
+async function cacheKeys(){
+  const out=[];
+  try{ for(const name of await caches.keys()){ const c=await caches.open(name); const ks=await c.keys(); out.push({name, urls:ks.map(r=>r.url)}); } }catch(e){}
+  return out;
+}
+async function markCachedBadges(){
+  const all=await cacheKeys();
+  const urls=all.flatMap(c=>c.urls).join('\n');
+  $$('.card[data-mid]').forEach(card=>{
+    const m=findModel(card.dataset.mid);
+    if(m&&urls.includes(m.repo)) card.classList.add('iscached');
+  });
+}
+async function refreshCacheInfo(){
+  const all=await cacheKeys();
+  const n=all.reduce((a,c)=>a+c.urls.length,0);
+  let used=null; try{ const e=await navigator.storage.estimate(); used=e.usage; }catch(_){}
+  $('#cacheinfo').textContent = n? (n+' files held in browser cache - '+fmtBytes(used)+' total app storage. Delete frees the space; models re-download on next load.') : 'No models cached yet.';
+  markCachedBadges();
+}
+$('#cacheclear').onclick=()=>askConfirm('Delete every cached model file? They re-download on next use.', async ()=>{
+  for(const name of await caches.keys()){ if(name.includes('transformers')) await caches.delete(name); }
+  $$('.card.iscached').forEach(c=>c.classList.remove('iscached'));
+  refreshCacheInfo(); toast('model cache cleared');
+});
+
+/* ---------- chat ---------- */
+function chatKey(){ return S.chatModel?S.chatModel.id:'chat'; }
+function loadChatHistory(){
+  S.history = (S.store.history&&S.store.history[chatKey()])||[];
+  const th=$('#thread'); th.innerHTML='';
+  if(!S.history.length) addMsg('sys','running 100% on this device - nothing you type leaves it');
+  else S.history.forEach(m=>addMsg(m.role==='user'?'user':'bot', m.content, true));
+}
+function addMsg(kind, text, silent){
+  const d=document.createElement('div'); d.className='msg '+kind; d.textContent=text;
+  $('#thread').appendChild(d); d.scrollIntoView({block:'end'});
+  return d;
+}
+$('#chatsend').onclick=sendChat;
+$('#chatin').addEventListener('keydown',e=>{ if(e.key==='Enter')sendChat(); });
+async function sendChat(){
+  const eng=S.engines.chat; if(!eng||S.busy)return;
+  const inp=$('#chatin'); const text=inp.value.trim(); if(!text)return;
+  inp.value=''; S.busy=true;
+  addMsg('user', text);
+  S.history.push({role:'user', content:text});
+  const bubble=addMsg('bot','');
+  const stats=$('#chatstats'); stats.textContent='thinking on-device...';
+  let out='', tok=0; const t0=performance.now(); let first=null;
+  try{
+    const streamer=new TextStreamer(eng.pipe.tokenizer, {skip_prompt:true, skip_special_tokens:true,
+      callback_function:t=>{ if(first==null)first=performance.now(); out+=t; tok++; bubble.textContent=out; bubble.scrollIntoView({block:'end'}); }});
+    const messages=S.history.slice(-12).map(m=>({role:m.role, content:m.content}));
+    await eng.pipe(messages, {max_new_tokens:384, do_sample:true, temperature:0.7, top_p:0.9, repetition_penalty:1.15, streamer});
+    const dt=(performance.now()-t0)/1000;
+    stats.textContent=tok+' tokens in '+dt.toFixed(1)+'s - '+(tok/dt).toFixed(1)+' tok/s on '+(devPick()==='webgpu'?'GPU':'CPU');
+    S.history.push({role:'assistant', content:out});
+    if(S.saveMode==='enc'){ S.store.history[chatKey()]=S.history.slice(-40); persist(); }
+  }catch(e){ bubble.textContent='(generation failed: '+(e.message||e)+')'; stats.textContent=''; }
+  S.busy=false;
+}
+
+/* ---------- asr ---------- */
+let mediaRec=null, recChunks=[];
+$('#asrrec').onclick=async ()=>{
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recChunks=[]; mediaRec=new MediaRecorder(stream);
+    mediaRec.ondataavailable=e=>recChunks.push(e.data);
+    mediaRec.start();
+    $('#asrrec').disabled=true; $('#asrstop').disabled=false;
+    $('#asrstatus').textContent='recording - mic audio stays on this device';
+  }catch(e){ toast('mic denied: '+e.message); }
+};
+$('#asrstop').onclick=()=>{
+  if(!mediaRec)return;
+  mediaRec.onstop=async ()=>{
+    mediaRec.stream.getTracks().forEach(t=>t.stop());
+    $('#asrstatus').textContent='decoding + transcribing...';
+    try{
+      const blob=new Blob(recChunks);
+      const buf=await blob.arrayBuffer();
+      const AC=window.AudioContext||window.webkitAudioContext;
+      const ctx=new AC({sampleRate:16000});
+      const audio=await ctx.decodeAudioData(buf);
+      const ch=audio.getChannelData(0);
+      const eng=S.engines.asr;
+      const t0=performance.now();
+      const res=await eng.pipe(ch);
+      $('#asrout').textContent=(res.text||'').trim()||'(nothing heard)';
+      $('#asrstatus').textContent='transcribed '+audio.duration.toFixed(1)+'s of audio in '+((performance.now()-t0)/1000).toFixed(1)+'s';
+      ctx.close();
+    }catch(e){ $('#asrstatus').textContent='failed: '+(e.message||e); }
+    $('#asrrec').disabled=false; $('#asrstop').disabled=true;
+  };
+  mediaRec.stop();
+};
+
+/* ---------- translate ---------- */
+$('#trgo').onclick=async ()=>{
+  const eng=S.engines.translate; if(!eng||S.busy)return;
+  const text=$('#trin').value.trim(); if(!text)return;
+  S.busy=true; $('#trout').textContent=''; $('#trstats').textContent='translating on-device...';
+  const t0=performance.now();
+  try{
+    const res=await eng.pipe(text);
+    $('#trout').textContent=res[0].translation_text;
+    $('#trstats').textContent='done in '+((performance.now()-t0)/1000).toFixed(1)+'s';
+  }catch(e){ $('#trstats').textContent='failed: '+(e.message||e); }
+  S.busy=false;
+};
+
+/* ---------- embeddings ---------- */
+$('#embgo').onclick=async ()=>{
+  const eng=S.engines.embed; if(!eng||S.busy)return;
+  const a=$('#emb1').value.trim(), b=$('#emb2').value.trim(); if(!a||!b)return;
+  S.busy=true; $('#embstats').textContent='embedding...';
+  const t0=performance.now();
+  try{
+    const va=await eng.pipe(a,{pooling:'mean',normalize:true});
+    const vb=await eng.pipe(b,{pooling:'mean',normalize:true});
+    const x=va.data, y=vb.data; let dot=0;
+    for(let i=0;i<x.length;i++) dot+=x[i]*y[i];
+    const pc=Math.max(0,Math.min(1,dot));
+    $('#embfill').style.width=(pc*100).toFixed(0)+'%';
+    $('#embpct').textContent=' '+(pc*100).toFixed(1)+'%';
+    $('#embstats').textContent='done in '+((performance.now()-t0)/1000).toFixed(1)+'s - 0% unrelated, 100% same meaning';
+  }catch(e){ $('#embstats').textContent='failed: '+(e.message||e); }
+  S.busy=false;
+};
+
+/* ---------- vision ---------- */
+$('#visfile').onchange=async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const eng=S.engines.vision; if(!eng)return;
+  const url=URL.createObjectURL(f);
+  const img=$('#visprev'); img.src=url; img.style.display='block';
+  $('#visout').textContent=''; $('#visstats').textContent='classifying...';
+  const t0=performance.now();
+  try{
+    const res=await eng.pipe(url);
+    $('#visout').innerHTML=res.slice(0,5).map(r=>'<div class="kv"><b>'+esc(r.label)+'</b><span>'+(r.score*100).toFixed(1)+'%</span></div>').join('');
+    $('#visstats').textContent='classified in '+((performance.now()-t0)/1000).toFixed(1)+'s';
+  }catch(err){ $('#visstats').textContent='failed: '+(err.message||err); }
+};
+
+/* ---------- sentiment ---------- */
+$('#sentgo').onclick=async ()=>{
+  const eng=S.engines.sentiment; if(!eng||S.busy)return;
+  const text=$('#sentin').value.trim(); if(!text)return;
+  S.busy=true;
+  const t0=performance.now();
+  try{
+    const res=await eng.pipe(text);
+    const r=res[0];
+    $('#sentout').innerHTML='<div class="kv"><b>'+esc(r.label)+'</b><span>'+(r.score*100).toFixed(1)+'% sure</span></div>';
+    $('#sentstats').textContent='read in '+Math.round(performance.now()-t0)+'ms';
+  }catch(e){ $('#sentout').textContent='failed: '+(e.message||e); }
+  S.busy=false;
+};
+
+/* ---------- tts ---------- */
+$('#ttsgo').onclick=async ()=>{
+  const eng=S.engines.tts; if(!eng||S.busy)return;
+  const text=$('#ttsin').value.trim(); if(!text)return;
+  S.busy=true; $('#ttsstats').textContent='synthesizing - first run is slow on phones...';
+  const t0=performance.now();
+  try{
+    const out=await eng.pipe(text,{voice:'af_heart'});
+    const wav=encodeWAV(out.audio, out.sampling_rate);
+    const url=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
+    const a=$('#ttsaudio'); a.src=url; a.style.display='block'; a.play().catch(()=>{});
+    $('#ttsstats').textContent='spoken in '+((performance.now()-t0)/1000).toFixed(1)+'s, on-device';
+  }catch(e){ $('#ttsstats').textContent='failed: '+(e.message||e); }
+  S.busy=false;
+};
+function encodeWAV(samples, rate){
+  const buf=new ArrayBuffer(44+samples.length*2), v=new DataView(buf);
+  const wstr=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  wstr(0,'RIFF'); v.setUint32(4,36+samples.length*2,true); wstr(8,'WAVE'); wstr(12,'fmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  wstr(36,'data'); v.setUint32(40,samples.length*2,true);
+  for(let i=0;i<samples.length;i++){ const s=Math.max(-1,Math.min(1,samples[i])); v.setInt16(44+i*2, s<0?s*0x8000:s*0x7FFF, true); }
+  return buf;
+}
+
+/* ---------- truth matrix ---------- */
+function renderTruth(p){
+  const rows=[];
+  const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  const isAndroid=/Android/.test(navigator.userAgent);
+  if(p.webgpu) rows.push({you:true, sit:'This device, right now', eng:'WebGPU', real:'Everything on the shelf runs. Chat models up to ~1.5B feel usable; small ones feel instant.'});
+  else rows.push({you:true, sit:'This device, right now', eng:'WASM CPU', real:'Everything except big chat and fast TTS works. Chat runs but slowly - use 135M or 360M.'});
+  rows.push({sit:'Android, Chrome 121+', eng:'WebGPU', real:'Full shelf. This is the reference platform for phone edge AI.'});
+  rows.push({sit:'iPhone, iOS 26+ Safari', eng:'WebGPU', real:'GPU path exists at last. Small and mid chat models run; thermals decide sustained speed.'});
+  rows.push({sit:'iPhone, iOS 18 and older', eng:'WASM CPU', real:'No WebGPU in any iOS browser (all are WebKit underneath). Small models only, slowly.'});
+  rows.push({sit:'Any modern browser', eng:'WASM CPU', real:'Sentiment, vision, translation, embeddings: fine. Chat above 360M: not fun.'});
+  rows.push({sit:'Datacenter models (GPT-4 class)', eng:'none', real:'Cannot run on-device anywhere. Hundreds of GB. This app will never pretend otherwise.'});
+  $('#truthmatrix tbody').innerHTML=rows.map(r=>'<tr'+(r.you?' class="you"':'')+'><td>'+esc(r.sit)+(r.you?' <span class="rec">you</span>':'')+'</td><td class="mono" style="font-size:12px">'+esc(r.eng)+'</td><td>'+esc(r.real)+'</td></tr>').join('');
+}
+
+/* ---------- boot ---------- */
+renderCatalog();
+runProbe();
+netState();
+lockInit();
+refreshCacheInfo();
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
