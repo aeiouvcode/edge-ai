@@ -1,8 +1,7 @@
 /* EDGE//AI service worker: network-first shell updates, offline fallback.
    Model files are cached separately by Transformers.js. */
-const SHELL = 'edge-shell-v5';
-const SHELL_URLS = ['./', './index.html'];
-const CDN = 'cdn.jsdelivr.net';
+const SHELL = 'edge-shell-v6';
+const SHELL_URLS = ['./', './index.html', './transformers.min.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(SHELL_URLS)).then(() => self.skipWaiting()));
 });
@@ -23,9 +22,6 @@ self.addEventListener('fetch', e => {
       e.respondWith(caches.match(e.request).then(hit=>hit||fetch(e.request).then(res=>{const copy=res.clone();caches.open(SHELL).then(c=>c.put(e.request,copy));return res;})));
     }
     return;
-  }
-  if (url.host === CDN) {
-    e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request).then(res => { const copy=res.clone(); caches.open(SHELL).then(c=>c.put(e.request,copy)); return res; })));
   }
   // Model downloads pass through; Transformers.js owns their browser cache.
 });
