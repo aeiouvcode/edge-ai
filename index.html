@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#191512">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.huggingface.co https://cdn-lfs-eu-1.huggingface.co https://cas-bridge.xethub.hf.co https://transfer.xethub.hf.co https://cdn.jsdelivr.net; worker-src 'self' blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.huggingface.co https://cdn-lfs-eu-1.huggingface.co https://cas-bridge.xethub.hf.co https://transfer.xethub.hf.co https://cdn.jsdelivr.net; worker-src 'self' blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:">
 <title>EDGE//AI - on-device inference, any phone</title>
 <style>
 :root{
@@ -441,7 +441,16 @@ const S = {
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 function esc(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function fmtBytes(b){ if(b==null)return'?'; const u=['B','KB','MB','GB']; let i=0; while(b>=1024&&i<3){b/=1024;i++;} return b.toFixed(i?1:0)+' '+u[i]; }
-function friendlyLoadError(e){ const m=(e&&e.message||e||'unknown error').toString(); if(/failed to fetch|networkerror|load failed/i.test(m))return 'model host was blocked or unreachable. Updated host access is live; retry once. If it repeats, switch network and tell us the model name.'; return m.slice(0,220); }
+function humanError(e, where='task'){
+  const m=(e&&e.message||e||'').toString();
+  if(/dynamically imported module|blob:|no available backend/i.test(m)) return 'The fast GPU engine could not start in this browser. EDGE//AI will use the slower CPU engine instead. Close other heavy tabs, then retry.';
+  if(/failed to fetch|networkerror|load failed|fetch/i.test(m)) return 'The download was interrupted before the model was ready. Check the connection, keep this tab open, then retry. Finished files stay cached.';
+  if(/out of memory|memory|allocation|buffer/i.test(m)) return 'This model does not fit in the memory available to this tab. Unload the current model or choose a smaller one.';
+  if(/not found|404|no such file|unsupported|dtype/i.test(m)) return 'This model package is not compatible with the selected engine or quantization. Try q4, or choose a verified shelf model.';
+  if(/permission|denied|notallowed/i.test(m)) return 'Permission was not granted. Allow access in the browser and try again.';
+  return 'The '+where+' could not finish on this device. Nothing left the phone. Retry once, or choose a smaller model.';
+}
+function friendlyLoadError(e){ return humanError(e,'model load'); }
 let confirmCb=null;
 function askConfirm(text, cb){ $('#confirmtext').textContent=text; $('#confirm').classList.add('on'); confirmCb=cb; }
 $('#confirmyes').onclick=()=>{ $('#confirm').classList.remove('on'); if(confirmCb)confirmCb(); };
@@ -509,7 +518,7 @@ $('#unlockbtn').onclick=async ()=>{
       await persist();
     }
     enterApp();
-  }catch(e){ $('#lockerr').textContent='crypto failed: '+e.message; }
+  }catch(e){ $('#lockerr').textContent='The vault could not open. Check the passphrase and try again.'; }
 };
 $('#sessionbtn').onclick=()=>{ S.saveMode='none'; enterApp(); };
 $('#lockpass').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#unlockbtn').click(); });
@@ -654,9 +663,17 @@ function devPick(){ return (S.probe&&S.probe.webgpu)?'webgpu':'wasm'; }
 async function makePipe(task, m, onp){
   const dev=devPick();
   if(task==='chat'){
-    const dtype= dev==='webgpu' ? 'q4f16' : 'q4';
-    try{ return await pipeline('text-generation', m.repo, {device:dev, dtype, progress_callback:onp}); }
-    catch(e){ return await pipeline('text-generation', m.repo, {device:dev, dtype:'q4', progress_callback:onp}); }
+    if(dev==='webgpu'){
+      try{ return await pipeline('text-generation', m.repo, {device:'webgpu', dtype:'q4f16', progress_callback:onp}); }
+      catch(gpu16){
+        try{ return await pipeline('text-generation', m.repo, {device:'webgpu', dtype:'q4', progress_callback:onp}); }
+        catch(gpu4){
+          toast('GPU engine unavailable - switching to the private CPU engine.',5200);
+          return await pipeline('text-generation', m.repo, {device:'wasm', dtype:'q4', progress_callback:onp});
+        }
+      }
+    }
+    return await pipeline('text-generation', m.repo, {device:'wasm', dtype:'q4', progress_callback:onp});
   }
   if(task==='asr'){
     return await pipeline('automatic-speech-recognition', m.repo, {device:dev, dtype:{encoder_model:'fp32', decoder_model_merged:'q4'}, progress_callback:onp});
@@ -705,7 +722,7 @@ async function loadModel(mid){
     markCachedBadges();
   }catch(e){
     console.error(e);
-    card.querySelector('.loadnote').textContent='failed: '+(e.message||e);
+    card.querySelector('.loadnote').textContent=humanError(e,'model load');
     setPill('idle','IDLE');
     toast('Load failed: '+friendlyLoadError(e), 7000);
   }finally{
@@ -804,7 +821,7 @@ async function sendChat(){
     stats.textContent=tok+' tokens in '+dt.toFixed(1)+'s - '+(tok/dt).toFixed(1)+' tok/s on '+(devPick()==='webgpu'?'GPU':'CPU');
     S.history.push({role:'assistant', content:out});
     if(S.saveMode==='enc'){ S.store.history[chatKey()]=S.history.slice(-40); persist(); }
-  }catch(e){ bubble.textContent='(generation failed: '+(e.message||e)+')'; stats.textContent=''; }
+  }catch(e){ bubble.textContent=humanError(e,'reply'); stats.textContent=''; }
   S.busy=false;
 }
 
@@ -838,7 +855,7 @@ $('#benchrun').onclick=async()=>{
   for(const id of ids){
     if(S.benchStop)break;
     try{const r=await benchmarkOne(findModel(id)); S.store.benchmarks=(S.store.benchmarks||[]).concat(r).slice(-40); if(S.saveMode==='enc')await persist(); renderBenchResults();}
-    catch(e){$('#benchstatus').textContent=findModel(id).name+' failed: '+(e.message||e);}
+    catch(e){$('#benchstatus').textContent=findModel(id).name+': '+humanError(e,'benchmark');}
   }
   $('#benchstatus').textContent=S.benchStop?'stopped after current model':'benchmark complete · results measured on this device';
   $('#benchrun').disabled=false; $('#benchstop').disabled=true; S.busy=false; setPill(Object.keys(S.engines).length?'live':'idle',Object.keys(S.engines).length?'ON-DEVICE':'IDLE');
@@ -856,7 +873,7 @@ $('#hfload').onclick=async()=>{
     const dtype=$('#hfdtype').value;
     const pipe=await pipeline('text-generation',repo,{device:'webgpu',dtype,progress_callback:p=>{if(p.status==='progress'&&p.total){const pc=Math.round(100*p.loaded/p.total);fill.style.width=pc+'%';$('#hfstatus').textContent='downloading '+p.file+' · '+pc+'%';}else if(p.status==='initiate')$('#hfstatus').textContent='checking '+p.file;}});
     S.engines.chat={pipe,model:m}; fill.style.width='100%'; $('#hfstatus').textContent='ready · '+repo+' · WebGPU '+dtype; setPill('live','ON-DEVICE'); openWorkbench(m);
-  }catch(e){console.error(e); $('#hfstatus').textContent='Not compatible or did not fit: '+(e.message||e); setPill('idle','IDLE');}
+  }catch(e){console.error(e); $('#hfstatus').textContent=humanError(e,'custom model load'); setPill('idle','IDLE');}
   finally{S.busy=false;$('#hfload').disabled=false;}
 };
 
@@ -870,7 +887,7 @@ $('#asrrec').onclick=async ()=>{
     mediaRec.start();
     $('#asrrec').disabled=true; $('#asrstop').disabled=false;
     $('#asrstatus').textContent='recording - mic audio stays on this device';
-  }catch(e){ toast('mic denied: '+e.message); }
+  }catch(e){ toast(humanError(e,'microphone')); }
 };
 $('#asrstop').onclick=()=>{
   if(!mediaRec)return;
@@ -890,7 +907,7 @@ $('#asrstop').onclick=()=>{
       $('#asrout').textContent=(res.text||'').trim()||'(nothing heard)';
       $('#asrstatus').textContent='transcribed '+audio.duration.toFixed(1)+'s of audio in '+((performance.now()-t0)/1000).toFixed(1)+'s';
       ctx.close();
-    }catch(e){ $('#asrstatus').textContent='failed: '+(e.message||e); }
+    }catch(e){ $('#asrstatus').textContent=humanError(e,'transcription'); }
     $('#asrrec').disabled=false; $('#asrstop').disabled=true;
   };
   mediaRec.stop();
@@ -906,7 +923,7 @@ $('#trgo').onclick=async ()=>{
     const res=await eng.pipe(text);
     $('#trout').textContent=res[0].translation_text;
     $('#trstats').textContent='done in '+((performance.now()-t0)/1000).toFixed(1)+'s';
-  }catch(e){ $('#trstats').textContent='failed: '+(e.message||e); }
+  }catch(e){ $('#trstats').textContent=humanError(e,'translation'); }
   S.busy=false;
 };
 
@@ -925,7 +942,7 @@ $('#embgo').onclick=async ()=>{
     $('#embfill').style.width=(pc*100).toFixed(0)+'%';
     $('#embpct').textContent=' '+(pc*100).toFixed(1)+'%';
     $('#embstats').textContent='done in '+((performance.now()-t0)/1000).toFixed(1)+'s - 0% unrelated, 100% same meaning';
-  }catch(e){ $('#embstats').textContent='failed: '+(e.message||e); }
+  }catch(e){ $('#embstats').textContent=humanError(e,'comparison'); }
   S.busy=false;
 };
 
@@ -941,7 +958,7 @@ $('#visfile').onchange=async e=>{
     const res=await eng.pipe(url);
     $('#visout').innerHTML=res.slice(0,5).map(r=>'<div class="kv"><b>'+esc(r.label)+'</b><span>'+(r.score*100).toFixed(1)+'%</span></div>').join('');
     $('#visstats').textContent='classified in '+((performance.now()-t0)/1000).toFixed(1)+'s';
-  }catch(err){ $('#visstats').textContent='failed: '+(err.message||err); }
+  }catch(err){ $('#visstats').textContent=humanError(err,'image analysis'); }
 };
 
 /* ---------- sentiment ---------- */
@@ -955,7 +972,7 @@ $('#sentgo').onclick=async ()=>{
     const r=res[0];
     $('#sentout').innerHTML='<div class="kv"><b>'+esc(r.label)+'</b><span>'+(r.score*100).toFixed(1)+'% sure</span></div>';
     $('#sentstats').textContent='read in '+Math.round(performance.now()-t0)+'ms';
-  }catch(e){ $('#sentout').textContent='failed: '+(e.message||e); }
+  }catch(e){ $('#sentout').textContent=humanError(e,'sentiment analysis'); }
   S.busy=false;
 };
 
@@ -971,7 +988,7 @@ $('#ttsgo').onclick=async ()=>{
     const url=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
     const a=$('#ttsaudio'); a.src=url; a.style.display='block'; a.play().catch(()=>{});
     $('#ttsstats').textContent='spoken in '+((performance.now()-t0)/1000).toFixed(1)+'s, on-device';
-  }catch(e){ $('#ttsstats').textContent='failed: '+(e.message||e); }
+  }catch(e){ $('#ttsstats').textContent=humanError(e,'speech generation'); }
   S.busy=false;
 };
 function encodeWAV(samples, rate){
