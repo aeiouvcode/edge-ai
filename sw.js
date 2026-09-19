@@ -1,6 +1,6 @@
 /* EDGE//AI service worker: makes the app shell offline after first visit.
    Model files are cached separately by Transformers.js in the Cache API. */
-const SHELL = 'edge-shell-v2';
+const SHELL = 'edge-shell-v3';
 const SHELL_URLS = ['./', './index.html'];
 const CDN = 'cdn.jsdelivr.net';
 
