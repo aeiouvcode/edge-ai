@@ -1,6 +1,6 @@
 /* EDGE//AI service worker: network-first shell updates, offline fallback.
    Model files are cached separately by Transformers.js. */
-const SHELL = 'edge-shell-v4';
+const SHELL = 'edge-shell-v5';
 const SHELL_URLS = ['./', './index.html'];
 const CDN = 'cdn.jsdelivr.net';
 self.addEventListener('install', e => {
