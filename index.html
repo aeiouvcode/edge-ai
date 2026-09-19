@@ -158,6 +158,13 @@ audio{width:100%;margin-top:12px;display:none}
 .compat{margin-top:12px;padding:10px;border-left:2px solid var(--ok);background:var(--bg2);font-size:12px;color:var(--dim)}
 @media(max-width:680px){.labgrid{grid-template-columns:1fr}.tabbar button{letter-spacing:.08em;font-size:9px}}
 
+.cloakbox{margin-top:12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);padding:16px}
+.cloakgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.cloakout{background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:12px;min-height:84px;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.cloaklog{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.cloaklog .chip{color:var(--ok)}
+.switchrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0}.switchrow input{width:18px;height:18px;accent-color:var(--acc)}
+@media(max-width:680px){.cloakgrid{grid-template-columns:1fr}}
+
 /* truth */
 .matrix{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
 .matrix th{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
@@ -380,7 +387,24 @@ audio{width:100%;margin-top:12px;display:none}
         <div class="compat">This is the honest browser version of “load any model”: any <b>compatible Hugging Face ONNX text-generation repo</b>, within this device's memory. GGUF remains a native-app format and is not silently converted or uploaded.</div>
       </div>
     </div>
-    <div class="footnote">Benchmarks stay in this browser. Encrypted mode saves results inside the same AES-GCM vault; session mode saves nothing.</div>
+    <div class="cloakbox">
+      <div class="label">CLOUD CLOAK · CLIENT-SIDE</div>
+      <h2 style="font-family:var(--serif);font-weight:400;margin:5px 0">Real details stay here.</h2>
+      <p style="color:var(--dim);font-size:13px">Before a future opt-in cloud request leaves this tab, EDGE//AI can replace email addresses, phone numbers, IDs, addresses and your protected terms with consistent synthetic twins. The reply is restored locally. On-device models never need this because prompts never leave.</p>
+      <label class="switchrow"><span><b>Arm cloak for cloud escalation</b><br><span style="color:var(--faint);font-size:12px">Cloud routing is still off by default.</span></span><input type="checkbox" id="cloakenabled"></label>
+      <div class="formrow">
+        <input id="cloakterms" placeholder="Protected names or project terms, comma-separated" autocomplete="off">
+        <textarea id="cloakin" placeholder="Test a prompt before sending anything...">Email Naksh at naksh@example.com or call +91 98765 43210 about Project Ember.</textarea>
+        <button class="btn" id="cloakpreview">Preview local cloak</button>
+      </div>
+      <div class="cloakgrid">
+        <div><div class="label">WHAT WOULD LEAVE</div><div class="cloakout" id="cloakout"></div></div>
+        <div><div class="label">LOCAL MAP</div><div class="cloakout" id="cloakmap">Nothing mapped yet.</div></div>
+      </div>
+      <div class="cloaklog" id="cloaklog"></div>
+      <div class="compat">Honest limit: automatic detection uses conservative local patterns plus terms you name. It does not claim perfect person-name recognition. Always read the preview before a sensitive cloud request.</div>
+    </div>
+    <div class="footnote">Benchmarks and cloak mappings stay in this browser. Encrypted mode saves them inside the same AES-GCM vault; session mode saves nothing.</div>
   </section>
 
   <!-- TRUTH -->
@@ -400,6 +424,7 @@ audio{width:100%;margin-top:12px;display:none}
       <div class="note"><h3>The iPhone fine print</h3><p>WebGPU reaches iPhones only with iOS 26+ in Safari, and every iOS browser is Safari's engine underneath - Chrome on iPhone has exactly the same ceiling. On older iOS you get the WASM fallback: everything still works, chat models just think slowly.</p></div>
       <div class="note"><h3>Why single-threaded on WASM</h3><p>Multithreaded WASM needs cross-origin isolation headers that static hosting cannot send. So the CPU fallback uses one core. WebGPU does not have this limit - another reason the GPU path feels like a different machine.</p></div>
       <div class="note"><h3>Privacy, in one breath</h3><p>No account, no API key, no analytics, no server of ours anywhere. The only network calls are model files from huggingface.co, and only when you press Load. History is encrypted with your passphrase or not stored at all.</p></div>
+      <div class="note"><h3>Cloud cloak</h3><p>Cloud routing is off by default. When it arrives, the optional cloak replaces detected private details with consistent synthetic twins before a request leaves, then restores them in the reply locally. The encrypted vault holds the mapping. Preview remains mandatory because local pattern detection cannot identify every name or secret.</p></div>
       <div class="note"><h3>Security posture</h3><p>The AI engine is pinned and served from this same site, not executed from a changing CDN. A restrictive browser policy blocks frames, forms, plugins, payment, camera, location, USB, Bluetooth and every network destination except this site and Hugging Face model hosts. Microphone access is allowed only when you press Record. The GPU runtime needs local <b>blob modules</b> and WebAssembly compilation; both stay inside this browser tab. Vault history uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write. Limits: model weights are public third-party data from Hugging Face, and a malicious or broken browser extension can still observe pages you open.</p></div>
     </div>
     <div class="footnote">EDGE//AI - on-device inference for any phone<br>Engine: Transformers.js (Hugging Face) + ONNX Runtime Web, WebGPU with WASM fallback<br>No backend. No key. No account.</div>
@@ -436,7 +461,7 @@ const S = {
   chatModel: null, asrModel: null,
   history: [],        // chat messages for active chat model
   benchStop: false,
-  store: { history: {}, settings: {}, benchmarks: [] },
+  store: { history: {}, settings: {}, benchmarks: [], cloakMap: {} },
   busy: false,
 };
 
@@ -509,7 +534,7 @@ $('#unlockbtn').onclick=async ()=>{
       if(check!=='EDGEOK'){ $('#lockerr').textContent='wrong passphrase'; return; }
       S.key=key; S.saveMode='enc';
       const data=localStorage.getItem(LS_DATA);
-      if(data){ try{ S.store=await decJSON(key, JSON.parse(data)); }catch(e){ S.store={history:{},settings:{}}; } }
+      if(data){ try{ S.store=await decJSON(key, JSON.parse(data)); }catch(e){ S.store={history:{},settings:{},benchmarks:[],cloakMap:{}}; } } S.store.cloakMap=S.store.cloakMap||{}; S.store.settings=S.store.settings||{};
     }else{
       if(p1!==p2){ $('#lockerr').textContent='passphrases do not match'; return; }
       if(p1.length<10){ $('#lockerr').textContent='Use at least 10 characters for a new vault.'; return; }
@@ -517,7 +542,7 @@ $('#unlockbtn').onclick=async ()=>{
       const key=await deriveKey(p1, salt);
       const verifier=await encJSON(key,'EDGEOK');
       localStorage.setItem(LS_LOCK, JSON.stringify({salt:b64(salt), verifier}));
-      S.key=key; S.saveMode='enc'; S.store={history:{},settings:{}};
+      S.key=key; S.saveMode='enc'; S.store={history:{},settings:{},benchmarks:[],cloakMap:{}};
       await persist();
     }
     enterApp();
@@ -529,7 +554,7 @@ $('#lockpass2').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#unlockbtn
 function enterApp(){
   $('#lock').classList.remove('on');
   $('#lockbtn').style.display = S.saveMode==='enc' ? 'block':'none';
-  if(S.saveMode==='enc' && S.store.settings.lastTab){ /* keep probe default */ }
+  if(S.saveMode==='enc' && S.store.settings.lastTab){ /* keep probe default */ } renderCloakState();
 }
 $('#lockbtn').onclick=()=>{ S.key=null; S.history=[]; $('#thread').innerHTML=''; lockInit(); };
 async function persist(){
@@ -828,6 +853,29 @@ async function sendChat(){
   S.busy=false;
 }
 
+/* ---------- cloud cloak: local substitution boundary ---------- */
+const CLOAK_TYPES={EMAIL:'email',PHONE:'phone',ID:'id',ADDRESS:'address',TERM:'protected term'};
+function cloakTwin(type,n){ return {EMAIL:'alex'+n+'@example.invalid',PHONE:'+1 202 555 '+String(1000+n).padStart(4,'0'),ID:'DOC-'+String(n).padStart(4,'0'),ADDRESS:(100+n)+' Cedar Lane',TERM:'Private-'+n}[type]; }
+function cloakPrompt(text, protectedTerms=[]){
+  const map=S.store.cloakMap||(S.store.cloakMap={}); let seq=Object.keys(map).length+1;
+  const pairs=[]; const add=(raw,type)=>{ if(!raw||raw.length<3)return raw; let hit=Object.entries(map).find(([,v])=>v.raw===raw); let token;
+    if(hit)token=hit[0]; else{token='⟦'+type+'_'+seq+'⟧';map[token]={raw,twin:cloakTwin(type,seq),type};seq++;}
+    pairs.push(token); return map[token].twin;
+  };
+  let out=text;
+  out=out.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,m=>add(m,'EMAIL'));
+  out=out.replace(/(?:\+?\d[\d\s().-]{7,}\d)/g,m=>add(m.trim(),'PHONE'));
+  out=out.replace(/\b(?:passport|aadhaar|aadhar|ssn|account|customer|employee|ticket|case|order)[\s:#-]*[A-Z0-9-]{4,}\b/gi,m=>add(m,'ID'));
+  out=out.replace(/\b\d{1,5}\s+[A-Za-z][A-Za-z .'-]{2,30}\s+(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Drive|Dr|Boulevard|Blvd|Nagar|Marg)\b/gi,m=>add(m,'ADDRESS'));
+  protectedTerms.filter(x=>x.length>=2).sort((a,b)=>b.length-a.length).forEach(term=>{out=out.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>add(m,'TERM'));});
+  if(S.saveMode==='enc')persist(); return {text:out,tokens:[...new Set(pairs)]};
+}
+function uncloakText(text){ const map=S.store.cloakMap||{}; let out=text; for(const v of Object.values(map)){out=out.split(v.twin).join(v.raw);} return out; }
+function renderCloakState(){ const st=S.store.settings||{}; $('#cloakenabled').checked=!!st.cloakEnabled; $('#cloakterms').value=(st.cloakTerms||[]).join(', '); }
+$('#cloakenabled').onchange=async e=>{S.store.settings.cloakEnabled=e.target.checked;if(S.saveMode==='enc')await persist();toast(e.target.checked?'Cloud cloak armed. Cloud routing remains off.':'Cloud cloak off.');};
+$('#cloakterms').onchange=async e=>{S.store.settings.cloakTerms=e.target.value.split(',').map(x=>x.trim()).filter(Boolean).slice(0,50);if(S.saveMode==='enc')await persist();};
+$('#cloakpreview').onclick=()=>{const terms=$('#cloakterms').value.split(',').map(x=>x.trim()).filter(Boolean);const r=cloakPrompt($('#cloakin').value,terms);$('#cloakout').textContent=r.text||'Nothing to cloak.';const map=S.store.cloakMap||{};$('#cloakmap').textContent=r.tokens.length?r.tokens.map(t=>map[t].type+' → '+map[t].twin).join('\n'):'No private pattern detected.';$('#cloaklog').innerHTML=r.tokens.map(t=>'<span class="chip">'+esc(map[t].type)+'</span>').join('');};
+
 /* ---------- pocket lab: real device benchmark + custom HF model ---------- */
 const BENCH_IDS=['chat135','chat360','chatq05','chatq15'];
 function renderBenchList(){
@@ -1031,4 +1079,5 @@ if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catc
 </script>
 </body>
 </html>
+
 
