@@ -987,10 +987,13 @@ async function loadNIMModels(){
     const r=await fetch('https://integrate.api.nvidia.com/v1/models',{headers:{Authorization:'Bearer '+S.nimKey,Accept:'application/json'}});
     if(!r.ok)throw new Error(r.status===401||r.status===403?'NVIDIA rejected this key. Check or replace it.':'NVIDIA model catalog returned HTTP '+r.status+'.');
     const data=await r.json(),models=(data.data||[]).filter(x=>x&&x.id).map(x=>x.id).sort();if(!models.length)throw new Error('NVIDIA returned no models for this key.');
+    const probeModel=models.find(id=>/llama-3\.1-8b-instruct|mistral-7b-instruct/i.test(id))||models[0];
+    const check=await fetch('https://integrate.api.nvidia.com/v1/chat/completions',{method:'POST',headers:nimAuthHeaders(),body:JSON.stringify({model:probeModel,messages:[{role:'user',content:'Reply with OK'}],stream:false,max_tokens:1})});
+    if(!check.ok)throw new Error(check.status===401||check.status===403?'NVIDIA rejected this key. Check or replace it.':'NVIDIA key check returned HTTP '+check.status+'.');
     S.nimModels=models;$('#nimmodel').innerHTML=models.map(id=>'<option value="'+esc(id)+'">'+esc(id)+'</option>').join('');setNIMConnected(true);
     $('#nimstatus').textContent='Connected directly to NVIDIA · '+models.length+' models available.';
     if(S.saveMode==='enc'&&$('#nimremember').checked){S.store.settings.nimKey=S.nimKey;await persist();}
-  }catch(e){setNIMConnected(false);$('#nimstatus').textContent=e.message||'NVIDIA connection failed. Nothing was sent.';}
+  }catch(e){setNIMConnected(false);$('#nimstatus').textContent=/Failed to fetch/i.test(e.message||'')?'NVIDIA could not be reached from this browser. Check the network or try another browser.':(e.message||'NVIDIA connection failed. Nothing was sent.');}
   finally{$('#nimconnect').disabled=false;}
 }
 $('#nimconnect').onclick=async()=>{const key=$('#nimkey').value.trim();if(!key)return toast('paste a NVIDIA NIM key');S.nimKey=key;await loadNIMModels();};
