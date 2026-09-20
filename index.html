@@ -1017,7 +1017,7 @@ async function validateHFRepo(){
   if(!validHFRepo(repo)){toast('use owner/repository');return;}
   $('#hfvalidate').disabled=true; $('#hfstatus').textContent='reading public repository metadata - no weights downloaded…'; $('#hfaudit').innerHTML='';
   try{
-    const res=await fetch('https://huggingface.co/api/models/'+encodeURIComponent(repo));
+    const res=await fetch('https://huggingface.co/api/models/'+repo.split('/').map(encodeURIComponent).join('/'));
     if(!res.ok)throw new Error(res.status===401||res.status===403?'gated':'metadata '+res.status);
     const data=await res.json(), files=data.siblings||[], names=new Set(files.map(f=>f.rfilename));
     const onnx=files.filter(f=>/(?:^|\/)onnx\/.*\.onnx$|\.onnx$/i.test(f.rfilename||''));
