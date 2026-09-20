@@ -1,6 +1,6 @@
 /* EDGE//AI service worker: network-first shell updates, offline fallback.
    Model files are cached separately by Transformers.js. */
-const SHELL = 'edge-shell-v11';
+const SHELL = 'edge-shell-v12';
 const SHELL_URLS = ['./', './index.html'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(SHELL_URLS)).then(() => self.skipWaiting()));
@@ -25,5 +25,3 @@ self.addEventListener('fetch', e => {
   }
   // Model downloads pass through; Transformers.js owns their browser cache.
 });
-
-
