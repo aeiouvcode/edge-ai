@@ -152,7 +152,7 @@ audio{width:100%;margin-top:12px;display:none}
 .checkrow{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line2);font-size:12px}
 .checkrow input{width:16px;height:16px;accent-color:var(--acc)}
 .checkrow span:last-child{font-family:var(--mono);font-size:10px;color:var(--faint)}
-.benchrow{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px 0;border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:11px}
+.benchrow{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px 0;border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:11px}.benchmetrics{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}.benchmetrics span{color:var(--faint);font-size:9px;border:1px solid var(--line2);padding:2px 5px;border-radius:2px}.rank{color:var(--acc);font-family:var(--mono);font-size:9px;letter-spacing:.1em}
 .benchrow strong{color:var(--acc);font-weight:500}
 .labstatus{font-family:var(--mono);font-size:10px;color:var(--faint);min-height:18px;margin-top:9px}
 .compat{margin-top:12px;padding:10px;border-left:2px solid var(--ok);background:var(--bg2);font-size:12px;color:var(--dim)}
@@ -368,9 +368,12 @@ audio{width:100%;margin-top:12px;display:none}
         <h2>Tokens per second, here.</h2>
         <p>Selected models download if needed, warm up once, then generate the same 48-token prompt. Runs one at a time so a phone does not hold several LLMs in memory.</p>
         <div class="checklist" id="benchlist"></div>
-        <button class="btn solid" id="benchrun">Run selected</button>
-        <button class="btn ghost" id="benchstop" disabled>Stop after current</button>
+        <div class="formrow">
+          <label class="switchrow"><span><b>Thermal loop</b><br><span style="color:var(--faint);font-size:12px">3 timed runs to reveal slowdown as the phone heats.</span></span><input type="checkbox" id="benchthermal"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn solid" id="benchrun">Run selected</button><button class="btn ghost" id="benchstop" disabled>Stop after current</button><button class="btn ghost" id="benchexport">Export JSON</button><button class="btn ghost" id="benchclear">Clear history</button></div>
+        </div>
         <div class="labstatus" id="benchstatus">Pick models. Downloads can be large.</div>
+        <div id="benchsummary"></div>
         <div id="benchresults"></div>
       </div>
       <div class="labcard">
@@ -436,6 +439,7 @@ Same origin only.</div></div>
       <div class="note"><h3>The iPhone fine print</h3><p>WebGPU reaches iPhones only with iOS 26+ in Safari, and every iOS browser is Safari's engine underneath - Chrome on iPhone has exactly the same ceiling. On older iOS you get the WASM fallback: everything still works, chat models just think slowly.</p></div>
       <div class="note"><h3>Why single-threaded on WASM</h3><p>Multithreaded WASM needs cross-origin isolation headers that static hosting cannot send. So the CPU fallback uses one core. WebGPU does not have this limit - another reason the GPU path feels like a different machine.</p></div>
       <div class="note"><h3>Privacy, in one breath</h3><p>No account, no API key, no analytics, no server of ours anywhere. The only network calls are model files from huggingface.co, and only when you press Load. History is encrypted with your passphrase or not stored at all.</p></div>
+      <div class="note"><h3>Benchmark honesty</h3><p>Results are measured on this device, not copied from a leaderboard. TTFT and sustained tok/s are real. Browser memory is shown only where the browser exposes it. “Thermal change” compares three repeated runs; it is a slowdown signal, not a battery-temperature sensor.</p></div>
       <div class="note"><h3>Local tool bridge</h3><p>Same-origin projects can call an already-open EDGE//AI window through postMessage. Callers cannot read the vault, model cache or chat history, and cross-origin messages are ignored. The user still unlocks the app and chooses the loaded model.</p></div>
       <div class="note"><h3>Cloud cloak</h3><p>Cloud routing is off by default. When it arrives, the optional cloak replaces detected private details with consistent synthetic twins before a request leaves, then restores them in the reply locally. The encrypted vault holds the mapping. Preview remains mandatory because local pattern detection cannot identify every name or secret.</p></div>
       <div class="note"><h3>Security posture</h3><p>The AI engine is pinned and served from this same site, not executed from a changing CDN. A restrictive browser policy blocks cross-origin frames, forms, plugins, payment, camera, location, USB, Bluetooth and every network destination except this site and Hugging Face model hosts. Microphone access is allowed only when you press Record. The GPU runtime needs local <b>blob modules</b> and WebAssembly compilation; both stay inside this browser tab. Vault history uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write. Limits: model weights are public third-party data from Hugging Face, and a malicious or broken browser extension can still observe pages you open.</p></div>
@@ -951,30 +955,46 @@ function renderBenchList(){
   $('#benchlist').innerHTML=BENCH_IDS.map((id,i)=>{const m=findModel(id);return '<label class="checkrow"><input type="checkbox" value="'+id+'" '+(i<2?'checked':'')+'><span>'+esc(m.name)+'</span><span>'+m.size+'</span></label>';}).join('');
   renderBenchResults();
 }
+function memoryMB(){return performance.memory?performance.memory.usedJSHeapSize/1048576:null;}
+function latestByModel(){const m={};for(const r of (S.store.benchmarks||[]))m[r.id]=r;return m;}
 function renderBenchResults(){
-  const rs=(S.store.benchmarks||[]).slice(-12).reverse();
-  $('#benchresults').innerHTML=rs.length?rs.map(r=>'<div class="benchrow"><span>'+esc(r.name)+'<br><span style="color:var(--faint)">'+esc(r.engine)+' · '+new Date(r.at).toLocaleString()+'</span></span><strong>'+r.tps.toFixed(1)+' tok/s</strong></div>').join(''):'';
+  const rs=(S.store.benchmarks||[]).slice(-40).reverse(), latest=latestByModel();
+  const ranked=Object.values(latest).sort((a,b)=>b.tps-a.tps);
+  $('#benchsummary').innerHTML=ranked.length?'<div class="compat"><b>Personal device leaderboard</b><br>'+ranked.map((r,i)=>(i+1)+'. '+esc(r.name)+' · '+r.tps.toFixed(1)+' tok/s'+(r.throttlePct!=null?' · '+r.throttlePct.toFixed(0)+'% thermal change':'')).join('<br>')+'</div>':'';
+  $('#benchresults').innerHTML=rs.length?rs.map(r=>'<div class="benchrow"><span><span class="rank">'+((ranked.findIndex(x=>x.id===r.id)+1)||'')+' / DEVICE</span><br>'+esc(r.name)+'<div class="benchmetrics"><span>TTFT '+(r.ttftMs==null?'n/a':r.ttftMs+' ms')+'</span><span>'+r.tokens+' tok</span><span>'+r.seconds.toFixed(1)+' s</span><span>'+esc(r.engine)+'</span>'+(r.memoryDeltaMB==null?'':'<span>Δ '+r.memoryDeltaMB.toFixed(1)+' MB</span>')+(r.throttlePct==null?'':'<span>thermal '+r.throttlePct.toFixed(0)+'%</span>')+'</div><span style="color:var(--faint)">'+new Date(r.at).toLocaleString()+'</span></span><strong>'+r.tps.toFixed(1)+' tok/s</strong></div>').join(''):'';
+  reorderShelfFromHistory();
+}
+function reorderShelfFromHistory(){
+  const latest=latestByModel(), group=$('#catalog .group'); if(!group)return;
+  [...group.querySelectorAll('.card[data-mid]')].sort((a,b)=>(latest[b.dataset.mid]?.tps||0)-(latest[a.dataset.mid]?.tps||0)).forEach((c,i)=>{group.appendChild(c);let badge=c.querySelector('.device-rank');if(!badge){badge=document.createElement('span');badge.className='device-rank rec';c.querySelector('.head').appendChild(badge);}badge.textContent=latest[c.dataset.mid]?'device #'+(i+1):'';});
+}
+async function timedBench(pipe,m,runIndex){
+  let ticks=0, first=null;const mem0=memoryMB(),t0=performance.now();
+  const streamer=new TextStreamer(pipe.tokenizer,{skip_prompt:true,skip_special_tokens:true,callback_function:()=>{if(first==null)first=performance.now();ticks++;}});
+  await pipe([{role:'user',content:'In plain language, explain why local AI privacy matters.'}],{max_new_tokens:64,do_sample:false,streamer});
+  const end=performance.now(),sec=(end-t0)/1000;
+  return {run:runIndex,tps:ticks/Math.max(sec,.001),seconds:sec,tokens:ticks,ttftMs:first==null?null:Math.round(first-t0),memoryDeltaMB:mem0==null?null:memoryMB()-mem0};
 }
 async function benchmarkOne(m){
-  const status=$('#benchstatus'); let pipe=null;
-  status.textContent='loading '+m.name+' ('+m.size+')…';
-  const tLoad=performance.now(); pipe=await makePipe('chat',m,p=>{if(p.status==='progress'&&p.total)status.textContent='downloading '+m.name+' · '+Math.round(100*p.loaded/p.total)+'%';});
-  status.textContent='warming '+m.name+'…';
-  await pipe([{role:'user',content:'Reply with exactly one word: ready'}],{max_new_tokens:3,do_sample:false});
-  let ticks=0; const streamer=new TextStreamer(pipe.tokenizer,{skip_prompt:true,skip_special_tokens:true,callback_function:()=>ticks++});
-  status.textContent='timing '+m.name+'…'; const t0=performance.now();
-  await pipe([{role:'user',content:'In plain language, explain why local AI privacy matters.'}],{max_new_tokens:48,do_sample:false,streamer});
-  const sec=(performance.now()-t0)/1000, tps=ticks/Math.max(sec,.001);
+  const status=$('#benchstatus'); let pipe=null;status.textContent='loading '+m.name+' ('+m.size+')…';
+  const load0=performance.now();pipe=await makePipe('chat',m,p=>{if(p.status==='progress'&&p.total)status.textContent='downloading '+m.name+' · '+Math.round(100*p.loaded/p.total)+'%';});
+  status.textContent='warming '+m.name+'…';await pipe([{role:'user',content:'Reply with exactly one word: ready'}],{max_new_tokens:3,do_sample:false});
+  const loops=$('#benchthermal').checked?3:1,runs=[];
+  for(let i=1;i<=loops;i++){status.textContent='timing '+m.name+' · run '+i+'/'+loops;runs.push(await timedBench(pipe,m,i));if(S.benchStop)break;}
   if(pipe.dispose)await pipe.dispose();
-  return {id:m.id,name:m.name,tps,seconds:sec,tokens:ticks,engine:devPick()==='webgpu'?'WebGPU':'WASM CPU',loadSeconds:(performance.now()-tLoad)/1000,at:new Date().toISOString()};
+  const first=runs[0],last=runs[runs.length-1],avg=runs.reduce((a,r)=>a+r.tps,0)/runs.length;
+  return {id:m.id,name:m.name,tps:avg,seconds:runs.reduce((a,r)=>a+r.seconds,0),tokens:runs.reduce((a,r)=>a+r.tokens,0),ttftMs:Math.round(runs.reduce((a,r)=>a+(r.ttftMs||0),0)/runs.length),memoryDeltaMB:first.memoryDeltaMB,throttlePct:runs.length>1?((last.tps-first.tps)/first.tps)*100:null,runs,engine:devPick()==='webgpu'?'WebGPU':'WASM CPU',loadSeconds:(performance.now()-load0)/1000,device:{cores:navigator.hardwareConcurrency||null,memoryGB:navigator.deviceMemory||null,userAgent:navigator.userAgent},at:new Date().toISOString()};
 }
+function downloadJSON(name,data){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+$('#benchexport').onclick=()=>downloadJSON('edge-ai-benchmarks-'+new Date().toISOString().slice(0,10)+'.json',{version:1,exportedAt:new Date().toISOString(),benchmarks:S.store.benchmarks||[]});
+$('#benchclear').onclick=()=>askConfirm('Clear benchmark history and device ranking?',async()=>{S.store.benchmarks=[];if(S.saveMode==='enc')await persist();renderBenchResults();toast('Benchmark history cleared');});
 $('#benchrun').onclick=async()=>{
   if(S.busy)return toast('another model is busy');
   const ids=$$('#benchlist input:checked').map(x=>x.value); if(!ids.length)return toast('pick at least one model');
   S.busy=true; S.benchStop=false; $('#benchrun').disabled=true; $('#benchstop').disabled=false; setPill('live','BENCH');
   for(const id of ids){
     if(S.benchStop)break;
-    try{const r=await benchmarkOne(findModel(id)); S.store.benchmarks=(S.store.benchmarks||[]).concat(r).slice(-40); if(S.saveMode==='enc')await persist(); renderBenchResults();}
+    try{const r=await benchmarkOne(findModel(id)); S.store.benchmarks=(S.store.benchmarks||[]).concat(r).slice(-100); if(S.saveMode==='enc')await persist(); renderBenchResults();}
     catch(e){$('#benchstatus').textContent=findModel(id).name+': '+humanError(e,'benchmark');}
   }
   $('#benchstatus').textContent=S.benchStop?'stopped after current model':'benchmark complete · results measured on this device';
@@ -1148,5 +1168,6 @@ if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catc
 </script>
 </body>
 </html>
+
 
 
