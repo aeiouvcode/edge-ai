@@ -1017,12 +1017,13 @@ async function validateHFRepo(){
   if(!validHFRepo(repo)){toast('use owner/repository');return;}
   $('#hfvalidate').disabled=true; $('#hfstatus').textContent='reading public repository metadata - no weights downloaded…'; $('#hfaudit').innerHTML='';
   try{
-    const res=await fetch('https://huggingface.co/api/models/'+repo.split('/').map(encodeURIComponent).join('/'));
+    const res=await fetch('https://huggingface.co/api/models/'+repo.split('/').map(encodeURIComponent).join('/')+'?blobs=true');
     if(!res.ok)throw new Error(res.status===401||res.status===403?'gated':'metadata '+res.status);
     const data=await res.json(), files=data.siblings||[], names=new Set(files.map(f=>f.rfilename));
     const onnx=files.filter(f=>/(?:^|\/)onnx\/.*\.onnx$|\.onnx$/i.test(f.rfilename||''));
     const hasConfig=names.has('config.json'), hasTokenizer=[...names].some(n=>/^tokenizer(?:_config)?\.json$/.test(n)||n==='tokenizer.json');
-    const task=data.pipeline_tag||data.config?.pipeline_tag||'not declared', taskOK=/text-generation|text2text-generation/.test(task);
+    const arch=(data.config?.architectures||[]).join(' '), declared=data.pipeline_tag||data.config?.pipeline_tag||'', inferred=/CausalLM|ConditionalGeneration|GPT|Llama|Mistral|Phi|Qwen/i.test(arch);
+    const task=declared||(inferred?'text-generation (inferred from architecture)':'not declared'), taskOK=/text-generation|text2text-generation/.test(task)||inferred;
     const remote=!!(data.config?.auto_map||data.tags?.includes('custom_code')||data.tags?.includes('requires-custom-code'));
     const gated=!!data.gated||data.private===true, bytes=weightBytes(files), mem=Number(navigator.deviceMemory)||null;
     const budget=mem?mem*1024*1024*1024*.38:null, sizeOK=!bytes||!budget||bytes<=budget, reasons=[];
