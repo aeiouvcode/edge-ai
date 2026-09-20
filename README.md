@@ -17,6 +17,7 @@ Live: https://aeiouvcode.github.io/edge-ai/
   - Vision: MobileNetV4 image classification
   - Sentiment: DistilBERT SST-2
   - Voice: Kokoro 82M text-to-speech (experimental)
+- **Compatibility preflight** - inspects a public Hugging Face repo before downloading weights: task, config/tokenizer, ONNX packaging, gated/remote-code flags, listed size and a conservative per-device memory budget. FAIL keeps Load disabled.
 - **Workbench** - streaming chat, mic transcription, translation,
   similarity, photo classification, sentiment, speech synthesis.
   Everything after the one-time model download runs 100% offline.
