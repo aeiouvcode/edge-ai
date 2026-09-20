@@ -156,6 +156,7 @@ audio{width:100%;margin-top:12px;display:none}
 .benchrow strong{color:var(--acc);font-weight:500}
 .labstatus{font-family:var(--mono);font-size:10px;color:var(--faint);min-height:18px;margin-top:9px}
 .compat{margin-top:12px;padding:10px;border-left:2px solid var(--ok);background:var(--bg2);font-size:12px;color:var(--dim)}
+.audit{margin-top:12px;border:1px solid var(--line);border-radius:4px;background:var(--bg2);overflow:hidden}.audit:empty{display:none}.audithead{display:flex;align-items:center;gap:9px;padding:11px 12px;border-bottom:1px solid var(--line2)}.audithead b{font-family:var(--mono);font-size:11px;letter-spacing:.1em}.auditbody{padding:5px 12px 11px}.auditrow{display:grid;grid-template-columns:88px 1fr;gap:9px;padding:7px 0;border-bottom:1px solid var(--line2);font-size:11px}.auditrow:last-child{border-bottom:none}.auditrow span:first-child{font-family:var(--mono);color:var(--faint);text-transform:uppercase;letter-spacing:.08em}.auditrow span:last-child{color:var(--dim);word-break:break-word}.audit.pass .audithead{color:var(--acc)}.audit.partial .audithead{color:var(--ok)}.audit.fail .audithead{color:var(--bad)}
 @media(max-width:680px){.labgrid{grid-template-columns:1fr}.tabbar button{letter-spacing:.08em;font-size:9px}}
 
 .cloakbox{margin-top:12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);padding:16px}
@@ -379,11 +380,12 @@ audio{width:100%;margin-top:12px;display:none}
       <div class="labcard">
         <div class="label">HUGGING FACE LOADER · WEBGPU</div>
         <h2>Paste a model repo.</h2>
-        <p>Public, ungated text-generation models only. The repo must contain browser-ready ONNX weights and tokenizer files. Raw PyTorch, Safetensors-only, GGUF, gated, and remote-code models cannot load in a browser.</p>
+        <p>Public, ungated text-generation models only. The repo must contain browser-ready ONNX weights and tokenizer files. Raw PyTorch, Safetensors-only, GGUF, gated, and remote-code models cannot load in a browser. Validate first to inspect the repo without downloading the weights.</p>
         <div class="formrow">
           <input id="hfrepo" placeholder="onnx-community/SmolLM2-360M-Instruct-ONNX" autocomplete="off" spellcheck="false">
           <select id="hfdtype"><option value="q4f16">q4f16 - fastest, needs shader-f16</option><option value="q4">q4 - widest WebGPU fit</option><option value="fp16">fp16 - large, high quality</option></select>
-          <button class="btn solid" id="hfload">Load on WebGPU</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="hfvalidate">Validate package</button><button class="btn solid" id="hfload" disabled>Load on WebGPU</button></div>
+          <div class="audit" id="hfaudit" aria-live="polite"></div>
           <div class="pbar on" id="hfbar"><i></i></div>
           <div class="labstatus" id="hfstatus">Waiting for a compatible repo.</div>
         </div>
@@ -439,6 +441,7 @@ Same origin only.</div></div>
       <div class="note"><h3>The iPhone fine print</h3><p>WebGPU reaches iPhones only with iOS 26+ in Safari, and every iOS browser is Safari's engine underneath - Chrome on iPhone has exactly the same ceiling. On older iOS you get the WASM fallback: everything still works, chat models just think slowly.</p></div>
       <div class="note"><h3>Why single-threaded on WASM</h3><p>Multithreaded WASM needs cross-origin isolation headers that static hosting cannot send. So the CPU fallback uses one core. WebGPU does not have this limit - another reason the GPU path feels like a different machine.</p></div>
       <div class="note"><h3>Privacy, in one breath</h3><p>No account, no API key, no analytics, no server of ours anywhere. The only network calls are model files from huggingface.co, and only when you press Load. History is encrypted with your passphrase or not stored at all.</p></div>
+      <div class="note"><h3>Bring-your-own-model gate</h3><p>The validator reads public Hugging Face repository metadata before any weight download. It checks task type, tokenizer/config files, browser-ready ONNX weights, remote-code and gating signals, then compares weight size with this device's reported memory. PASS means the package shape looks loadable, not that a phone is guaranteed enough free memory. PARTIAL means proceed carefully. FAIL keeps Load disabled.</p></div>
       <div class="note"><h3>Benchmark honesty</h3><p>Results are measured on this device, not copied from a leaderboard. TTFT and sustained tok/s are real. Browser memory is shown only where the browser exposes it. “Thermal change” compares three repeated runs; it is a slowdown signal, not a battery-temperature sensor.</p></div>
       <div class="note"><h3>Local tool bridge</h3><p>Same-origin projects can call an already-open EDGE//AI window through postMessage. Callers cannot read the vault, model cache or chat history, and cross-origin messages are ignored. The user still unlocks the app and chooses the loaded model.</p></div>
       <div class="note"><h3>Cloud cloak</h3><p>Cloud routing is off by default. When it arrives, the optional cloak replaces detected private details with consistent synthetic twins before a request leaves, then restores them in the reply locally. The encrypted vault holds the mapping. Preview remains mandatory because local pattern detection cannot identify every name or secret.</p></div>
@@ -1002,9 +1005,44 @@ $('#benchrun').onclick=async()=>{
 };
 $('#benchstop').onclick=()=>{S.benchStop=true; $('#benchstatus').textContent='will stop after current model';};
 function validHFRepo(v){return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(v)&&v.length<160;}
+let hfAudit=null;
+function weightBytes(files){return files.filter(f=>/(?:^|\/)onnx\/.*(?:\.onnx|\.onnx_data)$|\.onnx$/i.test(f.rfilename||'')).reduce((n,f)=>n+(Number(f.size)||0),0);}
+function formatAudit(a){
+  const rows=[['Task',a.task],['Package',a.package],['Weights',a.weightText],['Device fit',a.fit],['Safety',a.safety],['Why',a.reasons.join(' · ')]];
+  $('#hfaudit').className='audit '+a.grade.toLowerCase();
+  $('#hfaudit').innerHTML='<div class="audithead"><span class="chip '+(a.grade==='PASS'?'yes':a.grade==='PARTIAL'?'part':'no')+'">'+a.grade+'</span><b>COMPATIBILITY PREFLIGHT</b></div><div class="auditbody">'+rows.map(r=>'<div class="auditrow"><span>'+esc(r[0])+'</span><span>'+esc(r[1])+'</span></div>').join('')+'</div>';
+}
+async function validateHFRepo(){
+  const repo=$('#hfrepo').value.trim(); hfAudit=null; $('#hfload').disabled=true;
+  if(!validHFRepo(repo)){toast('use owner/repository');return;}
+  $('#hfvalidate').disabled=true; $('#hfstatus').textContent='reading public repository metadata - no weights downloaded…'; $('#hfaudit').innerHTML='';
+  try{
+    const res=await fetch('https://huggingface.co/api/models/'+encodeURIComponent(repo));
+    if(!res.ok)throw new Error(res.status===401||res.status===403?'gated':'metadata '+res.status);
+    const data=await res.json(), files=data.siblings||[], names=new Set(files.map(f=>f.rfilename));
+    const onnx=files.filter(f=>/(?:^|\/)onnx\/.*\.onnx$|\.onnx$/i.test(f.rfilename||''));
+    const hasConfig=names.has('config.json'), hasTokenizer=[...names].some(n=>/^tokenizer(?:_config)?\.json$/.test(n)||n==='tokenizer.json');
+    const task=data.pipeline_tag||data.config?.pipeline_tag||'not declared', taskOK=/text-generation|text2text-generation/.test(task);
+    const remote=!!(data.config?.auto_map||data.tags?.includes('custom_code')||data.tags?.includes('requires-custom-code'));
+    const gated=!!data.gated||data.private===true, bytes=weightBytes(files), mem=Number(navigator.deviceMemory)||null;
+    const budget=mem?mem*1024*1024*1024*.38:null, sizeOK=!bytes||!budget||bytes<=budget, reasons=[];
+    if(!taskOK)reasons.push('repo is not tagged for browser text generation');
+    if(!hasConfig)reasons.push('config.json missing'); if(!hasTokenizer)reasons.push('tokenizer package missing'); if(!onnx.length)reasons.push('no ONNX weights found');
+    if(remote)reasons.push('remote custom code is not executed'); if(gated)reasons.push('repo is gated or private'); if(!sizeOK)reasons.push('ONNX files exceed the conservative '+mem+' GB device budget');
+    const hard=!taskOK||!hasConfig||!hasTokenizer||!onnx.length||remote||gated;
+    const grade=hard?'FAIL':(!sizeOK||!bytes?'PARTIAL':'PASS');
+    hfAudit={repo,grade,task,package:(hasConfig?'config ✓':'config ✕')+' · '+(hasTokenizer?'tokenizer ✓':'tokenizer ✕')+' · '+(onnx.length?onnx.length+' ONNX file'+(onnx.length===1?'':'s'):'ONNX ✕'),weightText:bytes?fmtBytes(bytes)+' listed':'size not reported',fit:mem?(sizeOK?'inside conservative '+mem+' GB device budget':'too large for conservative '+mem+' GB device budget'):'browser hides RAM; fit unverified',safety:(remote?'remote code flagged':'no remote-code flag')+' · '+(gated?'gated/private':'public'),reasons:reasons.length?reasons:['package shape and device budget checks passed']};
+    formatAudit(hfAudit); $('#hfload').disabled=grade==='FAIL'||!(S.probe&&S.probe.webgpu);
+    $('#hfstatus').textContent=grade==='PASS'?'Preflight passed. Load stays local after the download.':grade==='PARTIAL'?'Preflight partial. Review the limits before loading.':'Preflight failed. Load stays disabled.';
+  }catch(e){
+    const gated=/gated/.test(e.message); hfAudit={repo,grade:'FAIL',task:'unverified',package:'metadata unavailable',weightText:'not downloaded',fit:'not tested',safety:gated?'access-controlled repository':'public metadata request failed',reasons:[gated?'gated repositories cannot load without a token':'Could not inspect this repository. Nothing was downloaded.']};formatAudit(hfAudit);$('#hfstatus').textContent='Preflight failed. Load stays disabled.';
+  }finally{$('#hfvalidate').disabled=false;}
+}
+$('#hfvalidate').onclick=validateHFRepo;
+$('#hfrepo').oninput=()=>{hfAudit=null;$('#hfload').disabled=true;$('#hfaudit').innerHTML='';$('#hfaudit').className='audit';$('#hfstatus').textContent='Validate before loading.';};
 $('#hfload').onclick=async()=>{
   if(S.busy)return toast('another model is busy');
-  const repo=$('#hfrepo').value.trim(); if(!validHFRepo(repo))return toast('use owner/repository');
+  const repo=$('#hfrepo').value.trim(); if(!hfAudit||hfAudit.repo!==repo||hfAudit.grade==='FAIL')return toast('validate this package first');
   if(!(S.probe&&S.probe.webgpu)){ $('#hfstatus').textContent='Blocked honestly: this loader needs WebGPU. Shelf models still use the WASM fallback.'; return; }
   const m={id:'custom-'+repo.replace(/[^a-z0-9]/gi,'-'),task:'chat',name:repo.split('/').pop(),repo,params:'custom',size:'repo-defined',tier:4,blurb:'User-supplied Hugging Face model'};
   S.busy=true; S.customModel=m; $('#hfload').disabled=true; setPill('live','LOADING'); const fill=$('#hfbar i'); fill.style.width='2%';
@@ -1168,6 +1206,3 @@ if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catc
 </script>
 </body>
 </html>
-
-
-
