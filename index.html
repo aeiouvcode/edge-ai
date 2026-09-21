@@ -75,7 +75,14 @@ a{color:var(--acc);text-decoration:none}
 .spec .v{font-family:var(--mono);font-size:13px;margin-top:3px;color:var(--ink)}
 .spec .v.good{color:var(--acc)}
 .spec .v.meh{color:var(--ok)}
-.healthgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.healthcell{border:1px solid var(--line2);background:var(--bg2);padding:10px;border-radius:3px}.healthcell b{display:block;font-family:var(--mono);font-size:14px;margin-top:3px}.healthcell small{color:var(--faint);font-size:10px}@media(max-width:520px){.healthgrid{grid-template-columns:1fr 1fr}}
+.healthstrip{margin-top:18px;padding:18px 0 4px;border-top:1px solid var(--line2)}
+.healthhead{display:flex;align-items:end;justify-content:space-between;gap:16px}.healthhead h2{font-family:var(--serif);font-size:21px;font-weight:400}.healthhead p{font-size:11px;color:var(--faint);text-align:right;max-width:190px}
+.healthgrid{display:grid;grid-template-columns:repeat(4,1fr);margin-top:14px;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2)}
+.healthcell{position:relative;padding:15px 14px 15px 0;min-height:94px}.healthcell+.healthcell{border-left:1px solid var(--line2);padding-left:14px}.healthcell b{display:block;font-family:var(--serif);font-size:19px;font-weight:400;margin:5px 0 2px;color:var(--ink)}.healthcell small{display:block;color:var(--faint);font-size:9px;line-height:1.5;letter-spacing:.06em}.healthcell small:first-child{font-family:var(--mono);letter-spacing:.14em}.healthcell.is-good b{color:var(--acc)}
+.healthrefresh{display:inline-flex;align-items:center;gap:8px;margin-top:13px;padding:8px 0;color:var(--dim);font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;transition:transform .16s ease,color .16s ease}.healthrefresh::before{content:'↻';font-size:15px;color:var(--acc)}.healthrefresh:hover{color:var(--ink)}.healthrefresh:active{transform:translateY(2px) scale(.98)}.healthrefresh.spin::before{animation:healthspin .55s cubic-bezier(.22,1,.36,1)}@keyframes healthspin{to{transform:rotate(360deg)}}
+.healthcell{opacity:0;transform:translateY(8px);animation:healthin .42s cubic-bezier(.22,1,.36,1) forwards}.healthcell:nth-child(2){animation-delay:.05s}.healthcell:nth-child(3){animation-delay:.1s}.healthcell:nth-child(4){animation-delay:.15s}@keyframes healthin{to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.healthcell{animation:none;opacity:1;transform:none}.healthrefresh.spin::before{animation:none}}
+@media(max-width:680px){.healthgrid{grid-template-columns:1fr 1fr}.healthcell:nth-child(3){border-left:0}.healthcell:nth-child(n+3){border-top:1px solid var(--line2)}.healthhead{align-items:start}.healthhead p{max-width:150px}.healthcell{min-height:102px}}
 @media(max-width:520px){.specgrid{grid-template-columns:1fr}}
 .engrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line2);font-size:13px}
 .engrow:last-child{border-bottom:none}
@@ -243,7 +250,7 @@ audio{width:100%;margin-top:12px;display:none}
       <div class="label" style="margin-bottom:8px">INFERENCE ENGINES AVAILABLE</div>
       <div id="englist"></div>
     </div>
-    <div class="card" style="margin-top:18px"><div class="label">OFFLINE READINESS</div><div class="healthgrid" id="healthgrid"><div class="healthcell"><small>STATUS</small><b>checking…</b></div></div><div class="foot" style="margin-top:12px"><button class="btn ghost sm" id="healthrefresh">Recheck readiness</button></div></div>
+    <section class="healthstrip"><div class="healthhead"><div><div class="label">OFFLINE READINESS</div><h2>Your pocket runtime.</h2></div><p>Live proof, not a promise.</p></div><div class="healthgrid" id="healthgrid"><div class="healthcell"><small>STATUS</small><b>checking…</b></div></div><button class="healthrefresh" id="healthrefresh">Recheck readiness</button></section>
     <div class="footnote" id="probefoot"></div>
   </section>
 
@@ -395,6 +402,21 @@ audio{width:100%;margin-top:12px;display:none}
         <div class="compat">This is the honest browser version of “load any model”: any <b>compatible Hugging Face ONNX text-generation repo</b>, within this device's memory. GGUF remains a native-app format and is not silently converted or uploaded.</div>
       </div>
     </div>
+    <div class="cloakbox" id="geminicloud">
+      <div class="label">GEMINI · OPT-IN CLOUD</div>
+      <h2 style="font-family:var(--serif);font-weight:400;margin:5px 0">A reliable cloud escape hatch.</h2>
+      <p style="color:var(--dim);font-size:13px">Bring a free Google AI Studio key. EDGE//AI calls Gemini's official OpenAI-compatible API directly; the key stays in memory unless you save it inside the encrypted vault.</p>
+      <div class="formrow">
+        <div class="secretrow"><input type="password" id="geminikey" placeholder="Google AI Studio API key" autocomplete="off" spellcheck="false"><button class="btn" id="geminiconnect">Connect + load models</button></div>
+        <label class="switchrow"><span><b>Remember inside encrypted vault</b><br><span style="color:var(--faint);font-size:12px">Unavailable in session-only mode. Never plain localStorage.</span></span><input type="checkbox" id="geminiremember"></label>
+        <select id="geminimodel" disabled><option value="">Connect to load Gemini catalog</option></select>
+        <textarea id="geminiin" placeholder="Prompt for Gemini..."></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="geminipreview">Cloak preview</button><button class="btn solid" id="geminisend" disabled>Send to Gemini</button><button class="btn ghost" id="geminiforget" disabled>Forget key</button></div>
+        <div class="labstatus" id="geministatus">Cloud is off. On-device stays the default.</div>
+      </div>
+      <div class="cloakgrid"><div><div class="label">WHAT GEMINI WILL RECEIVE</div><div class="cloakout" id="geminiout">Preview required before every send.</div></div><div><div class="label">RESTORED REPLY</div><div class="cloakout" id="geminireply">No cloud reply yet.</div></div></div>
+      <div class="compat">Cloud boundary: prompts and replies go to Google's Gemini API. Cloak preview is mandatory. On-device models remain untouched and require no key.</div>
+    </div>
     <div class="cloakbox" id="nimcloud">
       <div class="label">NVIDIA NIM · SELF-HOSTED</div>
       <h2 style="font-family:var(--serif);font-weight:400;margin:5px 0">Connect your own NIM container.</h2>
@@ -466,6 +488,7 @@ Same origin only.</div></div>
       <div class="note"><h3>Bring-your-own-model gate</h3><p>The validator reads public Hugging Face repository metadata before any weight download. It checks task type, tokenizer/config files, browser-ready ONNX weights, remote-code and gating signals, then compares weight size with this device's reported memory. PASS means the package shape looks loadable, not that a phone is guaranteed enough free memory. PARTIAL means proceed carefully. FAIL keeps Load disabled.</p></div>
       <div class="note"><h3>Benchmark honesty</h3><p>Results are measured on this device, not copied from a leaderboard. TTFT and sustained tok/s are real. Browser memory is shown only where the browser exposes it. “Thermal change” compares three repeated runs; it is a slowdown signal, not a battery-temperature sensor.</p></div>
       <div class="note"><h3>Local tool bridge</h3><p>Same-origin projects can call an already-open EDGE//AI window through postMessage. Callers cannot read the vault, model cache or chat history, and cross-origin messages are ignored. The user still unlocks the app and chooses the loaded model.</p></div>
+      <div class="note"><h3>Gemini cloud option</h3><p>Gemini is an opt-in cloud escape hatch using a free Google AI Studio key. EDGE//AI calls Google directly, requires a cloak preview before each send, and leaves the on-device path unchanged as the default.</p></div>
       <div class="note"><h3>NVIDIA NIM container</h3><p>Browsers cannot call NVIDIA's hosted integrate API from this site: NVIDIA allows build.nvidia.com only, and NVCF has no OpenAI-compatible /v1 routes. EDGE//AI instead supports a NIM container you run at localhost or another endpoint you control. The key is optional and memory-only unless saved in the encrypted vault.</p></div>
       <div class="note"><h3>Cloud cloak</h3><p>Cloud routing is off by default. When enabled, the optional cloak replaces detected private details with consistent synthetic twins before a request leaves, then restores them in the reply locally. The encrypted vault holds the mapping. Preview remains mandatory because local pattern detection cannot identify every name or secret.</p></div>
       <div class="note"><h3>Security posture</h3><p>The AI engine is pinned and served from this same site, not executed from a changing CDN. A restrictive browser policy blocks cross-origin frames, forms, plugins, payment, camera, location, USB, Bluetooth and plain HTTP destinations. On-device model traffic uses Hugging Face; the optional cloud field can connect only to the HTTPS endpoint the user enters (NVIDIA NVCF by default). Microphone access is allowed only when you press Record. The GPU runtime needs local <b>blob modules</b> and WebAssembly compilation; both stay inside this browser tab. Vault history uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write. Limits: model weights are public third-party data from Hugging Face, and a malicious or broken browser extension can still observe pages you open.</p></div>
@@ -506,7 +529,7 @@ const S = {
   benchStop: false,
   store: { history: {}, settings: {}, benchmarks: [], cloakMap: {} },
   busy: false, toolCaller: null, toolQueue: [],
-  nimKey: '', nimPreview: null, nimModels: [],
+  nimKey: '', nimPreview: null, nimModels: [], geminiKey:'', geminiPreview:null, geminiModels:[],
 };
 
 /* ---------- utils ---------- */
@@ -598,7 +621,7 @@ $('#lockpass2').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#unlockbtn
 function enterApp(){
   $('#lock').classList.remove('on');
   $('#lockbtn').style.display = S.saveMode==='enc' ? 'block':'none';
-  if(S.saveMode==='enc' && S.store.settings.lastTab){ /* keep probe default */ } renderCloakState(); restoreNIM(); announceToolReady(); queueURLPrompt();
+  if(S.saveMode==='enc' && S.store.settings.lastTab){ /* keep probe default */ } renderCloakState(); restoreNIM(); restoreGemini(); announceToolReady(); queueURLPrompt();
 }
 $('#lockbtn').onclick=()=>{ S.key=null; S.history=[]; $('#thread').innerHTML=''; lockInit(); };
 async function persist(){
@@ -678,9 +701,9 @@ async function renderHealth(){
     ['APP SHELL',sw,sw==='active'?'Controlled by service worker':'Reload once after install'],
     ['MODEL CACHE',cached?cached+' files':'empty',used?fmtBytes(used)+' total app storage':'No cached weights found'],
     ['STORAGE',persisted?'persistent':'best effort',persisted?'Browser should keep models':'Browser may evict under pressure'],
-  ].map(x=>'<div class="healthcell"><small>'+x[0]+'</small><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></div>').join('');
+  ].map(x=>'<div class="healthcell '+(/active|online|persistent|[1-9]\d* files/.test(x[1])?'is-good':'')+'"><small>'+x[0]+'</small><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></div>').join('');
 }
-$('#healthrefresh').onclick=async()=>{await renderHealth();toast('offline readiness rechecked');};
+$('#healthrefresh').onclick=async()=>{const b=$('#healthrefresh');b.classList.remove('spin');void b.offsetWidth;b.classList.add('spin');await renderHealth();setTimeout(()=>b.classList.remove('spin'),650);toast('offline readiness rechecked');};
 window.addEventListener('online',renderHealth);window.addEventListener('offline',renderHealth);
 
 /* ---------- catalog ---------- */
@@ -992,6 +1015,19 @@ function renderCloakState(){ const st=S.store.settings||{}; $('#cloakenabled').c
 $('#cloakenabled').onchange=async e=>{S.store.settings.cloakEnabled=e.target.checked;if(S.saveMode==='enc')await persist();toast(e.target.checked?'Cloud cloak armed. Cloud routing remains off.':'Cloud cloak off.');};
 $('#cloakterms').onchange=async e=>{S.store.settings.cloakTerms=e.target.value.split(',').map(x=>x.trim()).filter(Boolean).slice(0,50);if(S.saveMode==='enc')await persist();};
 $('#cloakpreview').onclick=()=>{const terms=$('#cloakterms').value.split(',').map(x=>x.trim()).filter(Boolean);const r=cloakPrompt($('#cloakin').value,terms);$('#cloakout').textContent=r.text||'Nothing to cloak.';const map=S.store.cloakMap||{};$('#cloakmap').textContent=r.tokens.length?r.tokens.map(t=>map[t].type+' → '+map[t].twin).join('\n'):'No private pattern detected.';$('#cloaklog').innerHTML=r.tokens.map(t=>'<span class="chip">'+esc(map[t].type)+'</span>').join('');};
+
+/* ---------- Gemini: direct BYO-key cloud escalation ---------- */
+const GEMINI_BASE='https://generativelanguage.googleapis.com/v1beta/openai';
+function geminiHeaders(){return {Authorization:'Bearer '+S.geminiKey,'Content-Type':'application/json',Accept:'application/json'};}
+function geminiState(on){$('#geminimodel').disabled=!on;$('#geminiforget').disabled=!on;$('#geminikey').value='';if(!on)$('#geminisend').disabled=true;}
+async function restoreGemini(){const k=S.saveMode==='enc'&&S.store.settings?.geminiKey;$('#geminiremember').disabled=S.saveMode!=='enc';if(k){S.geminiKey=k;$('#geminiremember').checked=true;await loadGemini();}}
+async function loadGemini(){if(!S.geminiKey)return;$('#geminiconnect').disabled=true;$('#geministatus').textContent='Checking key and loading Gemini catalog…';try{const r=await fetch(GEMINI_BASE+'/models',{headers:{Authorization:'Bearer '+S.geminiKey}});if(!r.ok)throw new Error(r.status===401||r.status===403?'Gemini rejected this key.':'Gemini catalog returned HTTP '+r.status+'.');const d=await r.json(),ids=(d.data||[]).map(x=>x.id).filter(id=>/^gemini/i.test(id)).sort();if(!ids.length)throw new Error('Gemini returned no compatible chat models.');S.geminiModels=ids;$('#geminimodel').innerHTML=ids.map(id=>'<option>'+esc(id)+'</option>').join('');geminiState(true);$('#geministatus').textContent='Connected to Gemini · '+ids.length+' models available.';if(S.saveMode==='enc'&&$('#geminiremember').checked){S.store.settings.geminiKey=S.geminiKey;await persist();}}catch(e){geminiState(false);$('#geministatus').textContent=/Failed to fetch/i.test(e.message||'')?'Gemini could not be reached from this browser.':e.message;}finally{$('#geminiconnect').disabled=false;}}
+$('#geminiconnect').onclick=async()=>{const k=$('#geminikey').value.trim();if(!k)return toast('paste a Google AI Studio key');S.geminiKey=k;await loadGemini();};
+$('#geminiremember').onchange=async e=>{if(S.saveMode!=='enc'){e.target.checked=false;return toast('unlock an encrypted vault to remember a key');}if(e.target.checked&&S.geminiKey)S.store.settings.geminiKey=S.geminiKey;else delete S.store.settings.geminiKey;await persist();};
+$('#geminiforget').onclick=async()=>{S.geminiKey='';S.geminiPreview=null;$('#geminimodel').innerHTML='<option>Connect to load Gemini catalog</option>';geminiState(false);delete S.store.settings.geminiKey;if(S.saveMode==='enc')await persist();$('#geministatus').textContent='Gemini key forgotten. Cloud is off.';};
+function previewGemini(){if(!S.geminiKey)return toast('connect Gemini first');const raw=$('#geminiin').value.trim();if(!raw)return toast('write a prompt first');const terms=$('#cloakterms').value.split(',').map(x=>x.trim()).filter(Boolean),r=cloakPrompt(raw,terms);S.geminiPreview={raw,cloaked:r.text,model:$('#geminimodel').value};$('#geminiout').textContent=r.text;$('#geminisend').disabled=!r.text;$('#geministatus').textContent='Preview ready. Read what will leave, then Send.';}
+$('#geminipreview').onclick=previewGemini;$('#geminiin').oninput=$('#geminimodel').onchange=()=>{S.geminiPreview=null;$('#geminisend').disabled=true;$('#geministatus').textContent='Prompt or model changed. Preview again.';};
+$('#geminisend').onclick=async()=>{const p=S.geminiPreview;if(!p||p.raw!==$('#geminiin').value.trim()||p.model!==$('#geminimodel').value)return toast('preview this exact prompt and model first');$('#geminisend').disabled=true;$('#geministatus').textContent='Gemini is generating in the cloud…';$('#geminireply').textContent='Waiting for Gemini…';try{const r=await fetch(GEMINI_BASE+'/chat/completions',{method:'POST',headers:geminiHeaders(),body:JSON.stringify({model:p.model,messages:[{role:'user',content:p.cloaked}],max_tokens:1024,stream:false})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error?.message||'Gemini returned HTTP '+r.status);const t=d.choices?.[0]?.message?.content;if(typeof t!=='string')throw new Error('Gemini returned no text.');$('#geminireply').textContent=uncloakText(t);$('#geministatus').textContent='Gemini reply restored locally · '+p.model;S.geminiPreview=null;}catch(e){$('#geminireply').textContent='Gemini request failed. '+e.message;$('#geministatus').textContent='Cloud request failed. On-device models are unaffected.';}};
 
 /* ---------- NVIDIA NIM: direct BYO-key cloud escalation ---------- */
 function nimAuthHeaders(){return {'Authorization':'Bearer '+S.nimKey,'Content-Type':'application/json','Accept':'application/json'};}
