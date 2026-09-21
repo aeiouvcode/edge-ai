@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#191512">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=(), interest-cohort=()">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https:; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
 <title>EDGE//AI - on-device inference, any phone</title>
 <style>
 :root{
@@ -394,23 +394,23 @@ audio{width:100%;margin-top:12px;display:none}
       </div>
     </div>
     <div class="cloakbox" id="nimcloud">
-      <div class="label">NVIDIA NIM · OPT-IN CLOUD</div>
-      <h2 style="font-family:var(--serif);font-weight:400;margin:5px 0">Escalate to a datacenter model.</h2>
-      <p style="color:var(--dim);font-size:13px">Bring your own NVIDIA NIM key from <a href="https://build.nvidia.com/" target="_blank" rel="noopener noreferrer">build.nvidia.com</a>. The key goes straight from this browser to NVIDIA's CORS-enabled NVCF gateway, or an HTTPS self-hosted OpenAI-compatible endpoint you enter. EDGE//AI has no backend and never receives it.</p>
+      <div class="label">NVIDIA NIM · SELF-HOSTED</div>
+      <h2 style="font-family:var(--serif);font-weight:400;margin:5px 0">Connect your own NIM container.</h2>
+      <p style="color:var(--dim);font-size:13px">Point EDGE//AI at a NIM container you run, usually <b>http://localhost:8000/v1</b>. A key is optional for self-hosted NIM. NVIDIA hosted nvapi keys only work on build.nvidia.com because its hosted API blocks other browser origins; this app will not pretend otherwise.</p>
       <div class="formrow">
-        <div class="secretrow"><input type="password" id="nimkey" placeholder="NVIDIA NIM API key" autocomplete="off" spellcheck="false"><button class="btn" id="nimconnect">Connect + load models</button></div>
-        <input id="nimendpoint" value="https://api.nvcf.nvidia.com/v1" placeholder="OpenAI-compatible endpoint" autocomplete="off" spellcheck="false">
+        <div class="secretrow"><input type="password" id="nimkey" placeholder="Optional endpoint API key" autocomplete="off" spellcheck="false"><button class="btn" id="nimconnect">Connect + load models</button></div>
+        <input id="nimendpoint" value="http://localhost:8000/v1" placeholder="OpenAI-compatible endpoint" autocomplete="off" spellcheck="false">
         <label class="switchrow"><span><b>Remember inside encrypted vault</b><br><span style="color:var(--faint);font-size:12px">Unavailable in session-only mode. Never plain localStorage.</span></span><input type="checkbox" id="nimremember"></label>
-        <select id="nimmodel" disabled><option value="">Connect to load NVIDIA NIM catalog</option></select>
+        <select id="nimmodel" disabled><option value="">Connect to local NIM catalog</option></select>
         <textarea id="nimin" placeholder="Prompt for the selected NVIDIA NIM model..."></textarea>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="nimpreview">Cloak preview</button><button class="btn solid" id="nimsend" disabled>Send to NVIDIA</button><button class="btn ghost" id="nimdisconnect" disabled>Forget key</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="nimpreview">Cloak preview</button><button class="btn solid" id="nimsend" disabled>Send to NIM</button><button class="btn ghost" id="nimdisconnect" disabled>Forget key</button></div>
         <div class="labstatus" id="nimstatus">Cloud is off. Nothing leaves until you connect, preview, and press Send.</div>
       </div>
       <div class="cloakgrid">
-        <div><div class="label">WHAT NVIDIA WILL RECEIVE</div><div class="cloakout" id="nimout">Preview required before every send.</div></div>
+        <div><div class="label">WHAT YOUR NIM WILL RECEIVE</div><div class="cloakout" id="nimout">Preview required before every send.</div></div>
         <div><div class="label">RESTORED REPLY</div><div class="cloakout" id="nimreply">No cloud reply yet.</div></div>
       </div>
-      <div class="compat">Cloud boundary: prompts and replies leave the device for the endpoint shown above. The default is NVIDIA's CORS-enabled NVCF gateway; changing it requires reconnecting. The NIM key stays in memory unless you explicitly save it inside the unlocked AES-GCM vault. Cloak preview is mandatory; detected details are substituted before send and restored only here.</div>
+      <div class="compat">Endpoint boundary: prompts and replies go only to the endpoint shown above. The default is your own localhost NIM container. Changing it requires reconnecting. A remote HTTPS endpoint is cloud use. The NIM key stays in memory unless you explicitly save it inside the unlocked AES-GCM vault. Cloak preview is mandatory; detected details are substituted before send and restored only here.</div>
     </div>
     <div class="cloakbox" id="toolbridge">
       <div class="label">LOCAL TOOL BRIDGE · SAME ORIGIN</div>
@@ -464,11 +464,11 @@ Same origin only.</div></div>
       <div class="note"><h3>Bring-your-own-model gate</h3><p>The validator reads public Hugging Face repository metadata before any weight download. It checks task type, tokenizer/config files, browser-ready ONNX weights, remote-code and gating signals, then compares weight size with this device's reported memory. PASS means the package shape looks loadable, not that a phone is guaranteed enough free memory. PARTIAL means proceed carefully. FAIL keeps Load disabled.</p></div>
       <div class="note"><h3>Benchmark honesty</h3><p>Results are measured on this device, not copied from a leaderboard. TTFT and sustained tok/s are real. Browser memory is shown only where the browser exposes it. “Thermal change” compares three repeated runs; it is a slowdown signal, not a battery-temperature sensor.</p></div>
       <div class="note"><h3>Local tool bridge</h3><p>Same-origin projects can call an already-open EDGE//AI window through postMessage. Callers cannot read the vault, model cache or chat history, and cross-origin messages are ignored. The user still unlocks the app and chooses the loaded model.</p></div>
-      <div class="note"><h3>NVIDIA NIM cloud option</h3><p>NIM is an explicit cloud escalation, not on-device inference. A user-supplied key calls NVIDIA directly from this browser. The model catalog comes from NVIDIA, cloak preview is required before every send, and the key is memory-only unless saved in the encrypted vault. Without a valid key the cloud path stays disconnected.</p></div>
+      <div class="note"><h3>NVIDIA NIM container</h3><p>Browsers cannot call NVIDIA's hosted integrate API from this site: NVIDIA allows build.nvidia.com only, and NVCF has no OpenAI-compatible /v1 routes. EDGE//AI instead supports a NIM container you run at localhost or another endpoint you control. The key is optional and memory-only unless saved in the encrypted vault.</p></div>
       <div class="note"><h3>Cloud cloak</h3><p>Cloud routing is off by default. When enabled, the optional cloak replaces detected private details with consistent synthetic twins before a request leaves, then restores them in the reply locally. The encrypted vault holds the mapping. Preview remains mandatory because local pattern detection cannot identify every name or secret.</p></div>
       <div class="note"><h3>Security posture</h3><p>The AI engine is pinned and served from this same site, not executed from a changing CDN. A restrictive browser policy blocks cross-origin frames, forms, plugins, payment, camera, location, USB, Bluetooth and plain HTTP destinations. On-device model traffic uses Hugging Face; the optional cloud field can connect only to the HTTPS endpoint the user enters (NVIDIA NVCF by default). Microphone access is allowed only when you press Record. The GPU runtime needs local <b>blob modules</b> and WebAssembly compilation; both stay inside this browser tab. Vault history uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write. Limits: model weights are public third-party data from Hugging Face, and a malicious or broken browser extension can still observe pages you open.</p></div>
     </div>
-    <div class="footnote">EDGE//AI - on-device inference for any phone<br>Engine: Transformers.js (Hugging Face) + ONNX Runtime Web, WebGPU with WASM fallback<br>No backend. No account. On-device needs no key; optional NVIDIA NIM uses your own key.</div>
+    <div class="footnote">EDGE//AI - on-device inference for any phone<br>Engine: Transformers.js (Hugging Face) + ONNX Runtime Web, WebGPU with WASM fallback<br>No backend. No account. On-device needs no key; optional NIM connects to your own container.</div>
   </section>
 
 </main>
@@ -975,9 +975,8 @@ $('#cloakterms').onchange=async e=>{S.store.settings.cloakTerms=e.target.value.s
 $('#cloakpreview').onclick=()=>{const terms=$('#cloakterms').value.split(',').map(x=>x.trim()).filter(Boolean);const r=cloakPrompt($('#cloakin').value,terms);$('#cloakout').textContent=r.text||'Nothing to cloak.';const map=S.store.cloakMap||{};$('#cloakmap').textContent=r.tokens.length?r.tokens.map(t=>map[t].type+' → '+map[t].twin).join('\n'):'No private pattern detected.';$('#cloaklog').innerHTML=r.tokens.map(t=>'<span class="chip">'+esc(map[t].type)+'</span>').join('');};
 
 /* ---------- NVIDIA NIM: direct BYO-key cloud escalation ---------- */
-const NIM_FALLBACK_MODELS=['meta/llama-3.1-8b-instruct','meta/llama-3.3-70b-instruct','meta/llama-3.2-3b-instruct','microsoft/phi-4-mini-instruct','nvidia/llama-3.3-nemotron-super-49b-v1.5','openai/gpt-oss-20b'];
 function nimAuthHeaders(){return {'Authorization':'Bearer '+S.nimKey,'Content-Type':'application/json','Accept':'application/json'};}
-function nimEndpoint(){const raw=$('#nimendpoint').value.trim().replace(/\/+$/,'');try{const u=new URL(raw);if(u.protocol!=='https:')throw 0;return u.href.replace(/\/+$/,'');}catch(e){return '';}}
+function nimEndpoint(){const raw=$('#nimendpoint').value.trim().replace(/\/+$/,'');try{const u=new URL(raw);if(u.protocol!=='https:'&&!(u.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(u.hostname)))throw 0;return u.href.replace(/\/+$/,'');}catch(e){return '';}}
 function nimMessage(msg,kind='bot'){const d=document.createElement('div');d.className='cloudmsg '+kind;d.textContent=msg;$('#nimreply').replaceChildren(d);}
 function setNIMConnected(on){$('#nimmodel').disabled=!on;$('#nimdisconnect').disabled=!on;$('#nimkey').value='';if(!on){$('#nimsend').disabled=true;S.nimPreview=null;}}
 async function restoreNIM(){
@@ -985,24 +984,21 @@ async function restoreNIM(){
   else{$('#nimremember').checked=false;$('#nimremember').disabled=S.saveMode!=='enc';}
 }
 async function loadNIMModels(){
-  if(!S.nimKey)return;const endpoint=nimEndpoint();if(!endpoint){$('#nimstatus').textContent='Use a valid HTTPS OpenAI-compatible endpoint.';return;}$('#nimconnect').disabled=true;$('#nimstatus').textContent='Checking key and loading NVIDIA NIM catalog…';
+  const endpoint=nimEndpoint();if(!endpoint){$('#nimstatus').textContent='Use a valid HTTPS OpenAI-compatible endpoint.';return;}$('#nimconnect').disabled=true;$('#nimstatus').textContent='Checking key and loading NVIDIA NIM catalog…';
   try{
-    const r=await fetch(nimEndpoint()+'/models',{headers:{Authorization:'Bearer '+S.nimKey,Accept:'application/json'}});
-    if(!r.ok&&r.status!==404)throw new Error(r.status===401||r.status===403?'NVIDIA rejected this key. Check or replace it.':'NVIDIA model catalog returned HTTP '+r.status+'.');
-    const data=r.ok?await r.json():{data:[]};let models=(data.data||[]).filter(x=>x&&x.id).map(x=>x.id).sort();
-    const catalogLive=models.length>0;if(!catalogLive)models=NIM_FALLBACK_MODELS.slice();
-    const probeModel=models.find(id=>/llama-3\.1-8b-instruct|mistral-7b-instruct/i.test(id))||models[0];
-    const check=await fetch(nimEndpoint()+'/chat/completions',{method:'POST',headers:nimAuthHeaders(),body:JSON.stringify({model:probeModel,messages:[{role:'user',content:'Reply with OK'}],stream:false,max_tokens:1})});
-    if(!check.ok)throw new Error(check.status===401||check.status===403?'NVIDIA rejected this key. Check or replace it.':'NVIDIA key check returned HTTP '+check.status+'.');
+    const headers={Accept:'application/json'};if(S.nimKey)headers.Authorization='Bearer '+S.nimKey;
+    const r=await fetch(nimEndpoint()+'/models',{headers});
+    if(!r.ok)throw new Error(r.status===401||r.status===403?'This NIM endpoint rejected the optional key.':'NIM model catalog returned HTTP '+r.status+'.');
+    const data=await r.json(),models=(data.data||[]).filter(x=>x&&x.id).map(x=>x.id).sort();if(!models.length)throw new Error('This NIM endpoint returned no models.');
     S.nimModels=models;$('#nimmodel').innerHTML=models.map(id=>'<option value="'+esc(id)+'">'+esc(id)+'</option>').join('');setNIMConnected(true);
-    $('#nimstatus').textContent=catalogLive?'Connected directly to NVIDIA · '+models.length+' models available.':'Key validated by NVIDIA · showing '+models.length+' verified common models (this gateway has no catalog endpoint).';
+    $('#nimstatus').textContent='Connected to self-hosted NIM · '+models.length+' models available.';
     if(S.saveMode==='enc'&&$('#nimremember').checked){S.store.settings.nimKey=S.nimKey;await persist();}
-  }catch(e){setNIMConnected(false);$('#nimstatus').textContent=/Failed to fetch/i.test(e.message||'')?'NVIDIA could not be reached from this browser. Check the network or try another browser.':(e.message||'NVIDIA connection failed. Nothing was sent.');}
+  }catch(e){setNIMConnected(false);$('#nimstatus').textContent=/Failed to fetch/i.test(e.message||'')?'The NIM endpoint could not be reached. Start the container, enable CORS, and check the endpoint URL.':(e.message||'NVIDIA connection failed. Nothing was sent.');}
   finally{$('#nimconnect').disabled=false;}
 }
-$('#nimconnect').onclick=async()=>{const key=$('#nimkey').value.trim();if(!key)return toast('paste a NVIDIA NIM key');S.nimKey=key;await loadNIMModels();};
+$('#nimconnect').onclick=async()=>{S.nimKey=$('#nimkey').value.trim();await loadNIMModels();};
 $('#nimremember').onchange=async e=>{if(S.saveMode!=='enc'){e.target.checked=false;return toast('unlock an encrypted vault to remember a key');}if(e.target.checked&&S.nimKey)S.store.settings.nimKey=S.nimKey;else delete S.store.settings.nimKey;await persist();};
-$('#nimdisconnect').onclick=async()=>{S.nimKey='';S.nimModels=[];S.nimPreview=null;$('#nimmodel').innerHTML='<option value="">Connect to load NVIDIA NIM catalog</option>';setNIMConnected(false);if(S.store.settings)delete S.store.settings.nimKey;if(S.saveMode==='enc')await persist();$('#nimstatus').textContent='NVIDIA key forgotten. Cloud is off.';$('#nimout').textContent='Preview required before every send.';nimMessage('No cloud reply yet.');};
+$('#nimdisconnect').onclick=async()=>{S.nimKey='';S.nimModels=[];S.nimPreview=null;$('#nimmodel').innerHTML='<option value="">Connect to local NIM catalog</option>';setNIMConnected(false);if(S.store.settings)delete S.store.settings.nimKey;if(S.saveMode==='enc')await persist();$('#nimstatus').textContent='NVIDIA key forgotten. Cloud is off.';$('#nimout').textContent='Preview required before every send.';nimMessage('No cloud reply yet.');};
 function makeNIMPreview(){
   if(!S.nimKey)return toast('connect NVIDIA first');const raw=$('#nimin').value.trim();if(!raw)return toast('write a prompt first');
   const terms=$('#cloakterms').value.split(',').map(x=>x.trim()).filter(Boolean),r=cloakPrompt(raw,terms);S.nimPreview={raw,cloaked:r.text,model:$('#nimmodel').value};
@@ -1014,13 +1010,13 @@ $('#nimendpoint').oninput=()=>{S.nimPreview=null;$('#nimsend').disabled=true;if(
 $('#nimmodel').onchange=()=>{S.nimPreview=null;$('#nimsend').disabled=true;$('#nimstatus').textContent='Model changed. Preview again before sending.';};
 $('#nimsend').onclick=async()=>{
   const p=S.nimPreview;if(!S.nimKey||!p||p.raw!==$('#nimin').value.trim()||p.model!==$('#nimmodel').value)return toast('preview this exact prompt and model first');
-  $('#nimsend').disabled=true;$('#nimstatus').textContent='NVIDIA NIM is generating in the cloud…';nimMessage('Waiting for NVIDIA…');
+  $('#nimsend').disabled=true;$('#nimstatus').textContent='Your NIM endpoint is generating…';nimMessage('Waiting for NVIDIA…');
   try{
     const r=await fetch(nimEndpoint()+'/chat/completions',{method:'POST',headers:nimAuthHeaders(),body:JSON.stringify({model:p.model,messages:[{role:'user',content:p.cloaked}],stream:false,max_tokens:1024})});
-    const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.detail||data.message||data.error?.message||('NVIDIA returned HTTP '+r.status));
-    const text=data.choices?.[0]?.message?.content;if(typeof text!=='string')throw new Error('NVIDIA returned no text reply.');
-    nimMessage(uncloakText(text));$('#nimstatus').textContent='Cloud reply restored locally · '+p.model;S.nimPreview=null;
-  }catch(e){nimMessage('NVIDIA request failed. '+(e.message||'No reply was returned.'));$('#nimstatus').textContent='Cloud request failed. Your on-device models are unaffected.';}
+    const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.detail||data.message||data.error?.message||('NIM endpoint returned HTTP '+r.status));
+    const text=data.choices?.[0]?.message?.content;if(typeof text!=='string')throw new Error('NIM endpoint returned no text reply.');
+    nimMessage(uncloakText(text));$('#nimstatus').textContent='NIM reply restored locally · '+p.model;S.nimPreview=null;
+  }catch(e){nimMessage('NIM request failed. '+(e.message||'No reply was returned.'));$('#nimstatus').textContent='NIM request failed. Your on-device models are unaffected.';}
 };
 
 /* ---------- pocket lab: real device benchmark + custom HF model ---------- */
