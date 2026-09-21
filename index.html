@@ -75,6 +75,7 @@ a{color:var(--acc);text-decoration:none}
 .spec .v{font-family:var(--mono);font-size:13px;margin-top:3px;color:var(--ink)}
 .spec .v.good{color:var(--acc)}
 .spec .v.meh{color:var(--ok)}
+.healthgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.healthcell{border:1px solid var(--line2);background:var(--bg2);padding:10px;border-radius:3px}.healthcell b{display:block;font-family:var(--mono);font-size:14px;margin-top:3px}.healthcell small{color:var(--faint);font-size:10px}@media(max-width:520px){.healthgrid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.specgrid{grid-template-columns:1fr}}
 .engrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line2);font-size:13px}
 .engrow:last-child{border-bottom:none}
@@ -242,6 +243,7 @@ audio{width:100%;margin-top:12px;display:none}
       <div class="label" style="margin-bottom:8px">INFERENCE ENGINES AVAILABLE</div>
       <div id="englist"></div>
     </div>
+    <div class="card" style="margin-top:18px"><div class="label">OFFLINE READINESS</div><div class="healthgrid" id="healthgrid"><div class="healthcell"><small>STATUS</small><b>checking…</b></div></div><div class="foot" style="margin-top:12px"><button class="btn ghost sm" id="healthrefresh">Recheck readiness</button></div></div>
     <div class="footnote" id="probefoot"></div>
   </section>
 
@@ -625,7 +627,7 @@ async function runProbe(){
   }
   p.webnn = 'ml' in navigator;
   try{ const est=await navigator.storage.estimate(); if(est&&est.quota) p.storage={used:est.usage||0, quota:est.quota}; }catch(e){}
-  S.probe=p; renderProbe(p); renderTruth(p); fitAll();
+  S.probe=p; renderProbe(p); renderTruth(p); fitAll(); await renderHealth();
 }
 function renderProbe(p){
   const gpuOk=p.webgpu, ram=p.mem;
@@ -663,6 +665,23 @@ function renderProbe(p){
   }).join('');
   $('#probefoot').textContent='UA: '+p.ua;
 }
+
+async function renderHealth(){
+  const box=$('#healthgrid');if(!box)return;let cached=0,used=null,persisted=false,sw='unsupported';
+  try{const all=await cacheKeys();cached=all.reduce((n,c)=>n+c.urls.filter(u=>/huggingface|onnx|model/i.test(u)).length,0);}catch(_){ }
+  try{const e=await navigator.storage.estimate();used=e.usage||0;}catch(_){ }
+  try{persisted=await navigator.storage.persisted();}catch(_){ }
+  if('serviceWorker' in navigator){try{const reg=await navigator.serviceWorker.getRegistration();sw=reg?(navigator.serviceWorker.controller?'active':'installed'):'missing';}catch(_){sw='error';}}
+  const online=navigator.onLine;
+  box.innerHTML=[
+    ['NETWORK',online?'online':'offline',online?'Downloads available':'Airplane test active'],
+    ['APP SHELL',sw,sw==='active'?'Controlled by service worker':'Reload once after install'],
+    ['MODEL CACHE',cached?cached+' files':'empty',used?fmtBytes(used)+' total app storage':'No cached weights found'],
+    ['STORAGE',persisted?'persistent':'best effort',persisted?'Browser should keep models':'Browser may evict under pressure'],
+  ].map(x=>'<div class="healthcell"><small>'+x[0]+'</small><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></div>').join('');
+}
+$('#healthrefresh').onclick=async()=>{await renderHealth();toast('offline readiness rechecked');};
+window.addEventListener('online',renderHealth);window.addEventListener('offline',renderHealth);
 
 /* ---------- catalog ---------- */
 const CATALOG=[
