@@ -3,6 +3,8 @@
 Run real AI models entirely in the browser, on the device in your hand.
 No backend, no API key, no account, no analytics.
 
+![EDGE//AI local vault](docs/screenshot.jpg)
+
 Live: https://aeiouvcode.github.io/edge-ai/
 
 ## What it does
