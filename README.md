@@ -1,7 +1,8 @@
 # EDGE//AI - on-device inference for any phone
 
 Run real AI models entirely in the browser, on the device in your hand.
-No backend, no API key, no account, no analytics.
+No backend, no account, no analytics. On-device is the default;
+Gemini is an optional bring-your-own-key escape hatch.
 
 ![EDGE//AI local vault](docs/screenshot.jpg)
 
@@ -25,6 +26,11 @@ Live: https://aeiouvcode.github.io/edge-ai/
   Everything after the one-time model download runs 100% offline.
 - **Encrypted history** - optional passphrase vault (PBKDF2 -> AES-GCM,
   derived in-tab). Session-only mode saves nothing.
+- **Optional cloud** - connect a Google AI Studio key to reach Gemini through
+  Google's official API. Every send needs a preview; emails, phone numbers and
+  protected terms are swapped for stand-ins before the prompt leaves and are
+  restored locally. A self-hosted NVIDIA NIM on localhost is also supported.
+- **Stop anytime** - on-device replies can be stopped mid-stream.
 - **Offline shell** - a service worker caches the app + engine library;
   models live in the browser cache via Transformers.js. Load a model,
   flip to airplane mode, keep going.
@@ -38,9 +44,15 @@ Live: https://aeiouvcode.github.io/edge-ai/
   generation on mid-range hardware, gated models. The app's Truth page says this
   to the user's face.
 
+## Security
+
+See [SECURITY.md](SECURITY.md): every network destination, the hash-locked
+engine and vendored runtime, the page policy, and the known limits.
+
 ## Files
 
 - `index.html` - the entire app (markup, styles, logic)
 - `sw.js` - offline shell service worker
+- `vendor/` - ONNX Runtime WebAssembly, byte-identical to the npm release (Transformers.js loads hash-locked from jsDelivr)
 
 No build step. No secrets. Serve statically and open on a phone.
