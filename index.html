@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#191512">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=(), interest-cohort=()">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'sha256-ronwrR5LutSiVSddSslSczCuA62sCQhOdJP+kUPWoQ0=' 'sha256-hLgczMw1xoqXPE+RQTL8mEYmEVAWvs97AY6oNFXrg2A=' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://generativelanguage.googleapis.com http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'sha256-ronwrR5LutSiVSddSslSczCuA62sCQhOdJP+kUPWoQ0=' 'sha256-34EqUx06NB7wZovQBAnfoVUzC5vX9WK9Id0DcCl05RQ=' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://generativelanguage.googleapis.com http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
 <title>EDGE//AI - on-device inference, any phone</title>
 <style>
 :root{
@@ -109,6 +109,7 @@ a{color:var(--acc);text-decoration:none}
 .btn.ghost{border-color:var(--line);color:var(--dim)}
 .btn.solid{background:var(--acc);border-color:var(--acc);color:#17130e;font-weight:600}
 .btn[disabled]{opacity:.4;pointer-events:none}
+.btn.solid[disabled]{background:transparent;border-color:var(--line);color:var(--faint);opacity:1}
 .btn.sm{padding:5px 10px;font-size:10px}
 .pbar{flex:1;height:3px;background:var(--line2);border-radius:99px;overflow:hidden;display:none}
 .pbar.on{display:block}
@@ -175,7 +176,7 @@ audio{width:100%;margin-top:12px;display:none}
 .provlede{color:var(--dim);font-size:13px;line-height:1.5;margin:10px 0 4px}
 .steps{list-style:none;margin:14px 0 0;padding:0}
 .step{display:grid;grid-template-columns:28px 1fr;gap:10px;padding:14px 0;border-top:1px solid var(--line2);transition:opacity .25s ease}
-.step[aria-disabled="true"]{opacity:.38}
+.step[aria-disabled="true"]{opacity:.45;padding:11px 0}.step[aria-disabled="true"] .stepbody>:not(.stepname){display:none}.step[aria-disabled="true"] .stepname{margin:0}
 .stepn{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--acc);padding-top:3px}.step[aria-disabled="true"] .stepn{color:var(--faint)}
 .stepname{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
 .stepbody{min-width:0;display:flex;flex-direction:column;gap:10px}
@@ -1075,7 +1076,14 @@ $('#geminiremember').onchange=async e=>{if(S.saveMode!=='enc'){e.target.checked=
 $('#geminiforget').onclick=async()=>{S.geminiKey='';S.geminiPreview=null;$('#geminimodel').replaceChildren(new Option('Connect to load models',''));geminiState(false);delete S.store.settings.geminiKey;if(S.saveMode==='enc')await persist();$('#geministatus').textContent='Gemini key forgotten. Cloud is off.';};
 function previewGemini(){if(!S.geminiKey)return toast('connect Gemini first');const raw=$('#geminiin').value.trim();if(!raw)return toast('write a prompt first');const terms=$('#cloakterms').value.split(',').map(x=>x.trim()).filter(Boolean),r=cloakPrompt(raw,terms);S.geminiPreview={raw,cloaked:r.text,model:$('#geminimodel').value};$('#geminiout').textContent=r.text;$('#geminioutpane').hidden=false;$('#geminisend').disabled=!r.text;$('#geministatus').textContent='Preview ready. Read what will leave, then Send.';}
 $('#geminipreview').onclick=previewGemini;$('#geminiin').oninput=$('#geminimodel').onchange=()=>{S.geminiPreview=null;$('#geminisend').disabled=true;$('#geminioutpane').hidden=true;$('#geministatus').textContent='Prompt or model changed. Preview again.';};
-$('#geminisend').onclick=async()=>{const p=S.geminiPreview;if(!p||p.raw!==$('#geminiin').value.trim()||p.model!==$('#geminimodel').value)return toast('preview this exact prompt and model first');$('#geminisend').disabled=true;$('#geministatus').textContent='Gemini is generating in the cloud…';$('#geminireply').textContent='Waiting for Gemini…';$('#geminireplypane').hidden=false;try{const r=await fetch(GEMINI_BASE+'/chat/completions',{method:'POST',headers:geminiHeaders(),body:JSON.stringify({model:p.model,messages:[{role:'user',content:p.cloaked}],max_tokens:1024,stream:false})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error?.message||'Gemini returned HTTP '+r.status);const t=d.choices?.[0]?.message?.content;if(typeof t!=='string')throw new Error('Gemini returned no text.');$('#geminireply').textContent=uncloakText(t);$('#geministatus').textContent='Gemini reply restored locally · '+p.model;S.geminiPreview=null;}catch(e){$('#geminireply').textContent='Gemini request failed. '+e.message;$('#geministatus').textContent='Cloud request failed. On-device models are unaffected.';}};
+$('#geminisend').onclick=async()=>{const p=S.geminiPreview;if(!p||p.raw!==$('#geminiin').value.trim()||p.model!==$('#geminimodel').value)return toast('preview this exact prompt and model first');const btn=$('#geminisend');btn.disabled=true;$('#geministatus').textContent='Gemini is generating in the cloud…';$('#geminireply').textContent='Waiting for Gemini…';$('#geminireplypane').hidden=false;
+  const ask=async()=>{const ac=new AbortController(),t=setTimeout(()=>ac.abort(),60000);try{return await fetch(GEMINI_BASE+'/chat/completions',{method:'POST',headers:geminiHeaders(),signal:ac.signal,body:JSON.stringify({model:p.model,messages:[{role:'user',content:p.cloaked}],max_tokens:1024,stream:false})});}finally{clearTimeout(t);}};
+  try{let r=await ask();if(r.status===429||r.status===503){$('#geministatus').textContent='Gemini is busy. Retrying once…';await new Promise(f=>setTimeout(f,2500));r=await ask();}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(r.status===429?'Rate limit reached for this key. Wait a minute or pick another model.':r.status===503?'Gemini is overloaded right now. Try again, or pick another model.':(d.error?.message||'Gemini returned HTTP '+r.status+'.'));
+    const t=d.choices?.[0]?.message?.content;if(typeof t!=='string')throw new Error('Gemini returned no text.');
+    $('#geminireply').textContent=uncloakText(t);$('#geministatus').textContent='Reply restored locally · '+p.model;S.geminiPreview=null;
+  }catch(e){$('#geminireply').textContent=e.name==='AbortError'?'No answer within 60 seconds. Nothing was restored.':e.message;$('#geministatus').textContent='Cloud request failed. Send again to retry; on-device models are unaffected.';btn.disabled=false;}};
 
 /* ---------- NVIDIA NIM: direct BYO-key cloud escalation ---------- */
 function nimAuthHeaders(){return {'Authorization':'Bearer '+S.nimKey,'Content-Type':'application/json','Accept':'application/json'};}
