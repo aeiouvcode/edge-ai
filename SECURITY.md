@@ -41,7 +41,7 @@ npm release (checked against the registry's published `sha512` tarball integrity
 
 - Cloud keys live in memory. They are saved only if you tick Remember while an encrypted vault is unlocked.
 - The vault uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write.
-- Lock reloads the page, so keys and decrypted history leave memory.
+- Lock and the 10-minute idle timeout reload the page, so keys and decrypted history leave memory.
 - Model output and remote text are written with `textContent` or escaped before display.
 
 ## Known limits
@@ -53,3 +53,15 @@ npm release (checked against the registry's published `sha512` tarball integrity
 - Model weights are public third-party files. A malicious browser extension can observe any page.
 
 Report a problem by opening an issue on this repository.
+
+## Chat worker integrity and interruption
+
+Chat inference runs in a dedicated module worker (`chat-worker.js`). The worker fetches the exact pinned
+Transformers.js URL and verifies SHA-384 using Web Crypto before importing those bytes from a blob URL.
+Import-map integrity on the main page does not automatically cover workers, so the worker checks the
+hash itself. The page CSP allows that one CDN URL in `connect-src` for this verified download.
+Other tasks still use the page's import-map integrity. Stop terminates the chat worker; this unloads the
+chat model and discards incomplete inference state, while leaving the visible partial answer in the tab.
+
+Remote Gemini and NIM errors are reduced to local, status-based messages before rendering. Provider-supplied
+error bodies can contain secrets or attacker-controlled text and are never surfaced as UI copy.
