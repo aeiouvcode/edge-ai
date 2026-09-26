@@ -1,7 +1,7 @@
 /* EDGE//AI service worker: network-first shell updates, offline fallback.
    Model files are cached separately by Transformers.js. */
-const SHELL = 'edge-shell-v16';
-const SHELL_URLS = ['./', './index.html'];
+const SHELL = 'edge-shell-v21';
+const SHELL_URLS = ['./', './index.html', './chat-worker.js', './favicon.svg', './404.html'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(SHELL_URLS)).then(() => self.skipWaiting()));
 });
@@ -16,8 +16,8 @@ self.addEventListener('fetch', e => {
     // Offline falls back to the last verified shell.
     if (e.request.mode === 'navigate' || /\/index\.html$/.test(url.pathname)) {
       e.respondWith(fetch(e.request).then(res => {
-        const copy=res.clone(); caches.open(SHELL).then(c=>c.put('./index.html',copy)); return res;
-      }).catch(()=>caches.match('./index.html').then(x=>x||caches.match('./'))));
+        if (res.ok && (url.pathname.endsWith('/edge-ai/') || url.pathname.endsWith('/edge-ai/index.html'))) {const copy=res.clone(); caches.open(SHELL).then(c=>c.put('./index.html',copy));} return res;
+      }).catch(()=>{const path=url.pathname;return path.endsWith('/edge-ai/')||path.endsWith('/edge-ai/index.html')?caches.match('./index.html'):caches.match('./404.html');}));
     } else {
       e.respondWith(caches.match(e.request).then(hit=>hit||fetch(e.request).then(res=>{const copy=res.clone();caches.open(SHELL).then(c=>c.put(e.request,copy));return res;})));
     }
