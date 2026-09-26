@@ -24,13 +24,14 @@ Live: https://aeiouvcode.github.io/edge-ai/
 - **Workbench** - streaming chat, mic transcription, translation,
   similarity, photo classification, sentiment, speech synthesis.
   Everything after the one-time model download runs 100% offline.
+- **New chat** - clear the current model conversation without unloading the model.
 - **Encrypted history** - optional passphrase vault (PBKDF2 -> AES-GCM,
   derived in-tab). Session-only mode saves nothing.
 - **Optional cloud** - connect a Google AI Studio key to reach Gemini through
   Google's official API. Every send needs a preview; emails, phone numbers and
   protected terms are swapped for stand-ins before the prompt leaves and are
   restored locally. A self-hosted NVIDIA NIM on localhost is also supported.
-- **Stop anytime** - on-device replies can be stopped mid-stream.
+- **Stop anytime** - local chat runs in a dedicated worker. Stop keeps partial text visible and unloads the model so even a stalled CPU reply can be interrupted.
 - **Offline shell** - a service worker caches the app + engine library;
   models live in the browser cache via Transformers.js. Load a model,
   flip to airplane mode, keep going.
@@ -52,6 +53,8 @@ engine and vendored runtime, the page policy, and the known limits.
 ## Files
 
 - `index.html` - the entire app (markup, styles, logic)
+- `chat-worker.js` - hash-verified local chat worker and interruptible inference
+- `FEATURE-MAP.md` - feature locations and trigger paths
 - `sw.js` - offline shell service worker
 - `vendor/` - ONNX Runtime WebAssembly, byte-identical to the npm release (Transformers.js loads hash-locked from jsDelivr)
 
