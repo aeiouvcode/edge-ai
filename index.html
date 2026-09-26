@@ -6,8 +6,10 @@
 <meta name="theme-color" content="#191512">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=(), interest-cohort=()">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'sha256-ronwrR5LutSiVSddSslSczCuA62sCQhOdJP+kUPWoQ0=' 'sha256-34EqUx06NB7wZovQBAnfoVUzC5vX9WK9Id0DcCl05RQ=' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js; style-src 'unsafe-inline'; connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co https://generativelanguage.googleapis.com http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
-<title>EDGE//AI - on-device inference, any phone</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'sha256-ronwrR5LutSiVSddSslSczCuA62sCQhOdJP+kUPWoQ0=' 'sha256-xKmzvaSxRb9rjJ6hPWxKnvrnr7tfBwCqMjNM/WuwYlw=' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js; style-src 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js https://huggingface.co https://*.huggingface.co https://*.hf.co https://generativelanguage.googleapis.com http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
+<meta name="description" content="Run small AI models privately on your phone. On-device chat, speech, translation and benchmarks, with an optional bring-your-own-key Gemini connection.">
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<title>EDGE//AI | Private on-device AI for your phone</title>
 <style>
 :root{
   --bg:#191512; --bg2:#14110d; --panel:#201a13; --panel2:#261f16;
@@ -132,7 +134,7 @@ a{color:var(--acc);text-decoration:none}
 .wbhead .meta{font-family:var(--mono);font-size:11px;color:var(--faint)}
 .wbpanel{display:none}
 .wbpanel.on{display:block}
-.thread{display:flex;flex-direction:column;gap:12px;margin-bottom:14px}
+.chattools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}.chattools .statline{text-align:right}.thread{display:flex;flex-direction:column;gap:12px;margin-bottom:14px}
 .msg{max-width:88%;padding:10px 13px;border-radius:4px;font-size:14px;white-space:pre-wrap;word-break:break-word}
 .msg.user{align-self:flex-end;background:var(--panel2);border:1px solid var(--line);border-right:2px solid var(--acc)}
 .msg.bot{align-self:flex-start;border-left:2px solid var(--line);padding-left:12px;color:var(--ink)}
@@ -306,7 +308,8 @@ details.cloakbox>summary::after{content:'+';font-family:var(--mono);color:var(--
     <div id="wbempty" class="empty">Load a model from the shelf. It stays in memory until you unload it or close the tab.</div>
 
     <div class="wbpanel" id="wb-chat">
-      <div class="thread" id="thread"></div>
+      <div class="chattools"><button class="btn ghost sm" id="chatnew" type="button">New chat</button><span class="statline" id="chatcontext">Session only · no history saved</span></div>
+      <div class="thread" id="thread" aria-live="polite"></div>
       <details style="margin-bottom:8px;border:1px solid var(--line);border-radius:4px;padding:9px 11px">
         <summary class="label" style="cursor:pointer">PROMPT LAB CONTROLS</summary>
         <div class="specgrid" style="margin-top:10px">
@@ -486,7 +489,7 @@ Same origin only.</div></div>
       <label class="switchrow"><span><b>Arm cloak for cloud escalation</b><br><span style="color:var(--faint);font-size:12px">Cloud routing is still off by default.</span></span><input type="checkbox" id="cloakenabled"></label>
       <div class="formrow">
         <input id="cloakterms" placeholder="Protected names or project terms, comma-separated" autocomplete="off">
-        <textarea id="cloakin" placeholder="Test a prompt before sending anything...">Email Naksh at naksh@example.com or call +91 98765 43210 about Project Ember.</textarea>
+        <textarea id="cloakin" placeholder="Type a prompt to see the local cloak preview..."></textarea>
         <button class="btn" id="cloakpreview">Preview local cloak</button>
       </div>
       <div class="cloakgrid">
@@ -522,7 +525,7 @@ Same origin only.</div></div>
       <div class="note"><h3>Gemini cloud option</h3><p>Gemini is an opt-in cloud escape hatch using a free Google AI Studio key. EDGE//AI calls Google directly, requires a cloak preview before each send, and leaves the on-device path unchanged as the default.</p></div>
       <div class="note"><h3>NVIDIA NIM container</h3><p>Browsers cannot call NVIDIA's hosted integrate API from this site: NVIDIA allows build.nvidia.com only, and NVCF has no OpenAI-compatible /v1 routes. EDGE//AI instead supports a NIM container you run at localhost or another endpoint you control. The key is optional and memory-only unless saved in the encrypted vault.</p></div>
       <div class="note"><h3>Cloud cloak</h3><p>Cloud routing is off by default. When enabled, the optional cloak replaces detected private details with consistent synthetic twins before a request leaves, then restores them in the reply locally. The encrypted vault holds the mapping. Preview remains mandatory because local pattern detection cannot identify every name or secret.</p></div>
-      <div class="note"><h3>Security posture</h3><p>The AI engine, Transformers.js 4.3.0, loads from jsDelivr at one exact file path, locked to its SHA-384 hash: if a single byte changes, the browser refuses to run it. Its ONNX Runtime WebAssembly is served from this site, byte-identical to the npm release. The page policy allows scripts only from this site, that one pinned file and two hashed inline blocks, and network calls only to Hugging Face (model downloads), Google's Gemini API (only after you connect a key) and your own localhost. There is no analytics, telemetry or tracking. The page refuses to run inside another site's frame. Microphone access is used only when you press Record. Vault history uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write; Lock reloads the page so keys and decrypted history leave memory. Limits: this app shares the aeiouvcode.github.io origin with other projects by the same author, model weights are public third-party data, and a malicious browser extension can still observe any page you open.</p></div>
+      <div class="note"><h3>Security posture</h3><p>The AI engine, Transformers.js 4.3.0, loads from jsDelivr at one exact file path, locked to its SHA-384 hash: if a single byte changes, the browser refuses to run it. Its ONNX Runtime WebAssembly is served from this site, byte-identical to the npm release. The page policy allows scripts only from this site, that one pinned file and two hashed inline blocks, and network calls only to the hash-checked jsDelivr engine, Hugging Face (model downloads), Google's Gemini API (only after you connect a key) and your own localhost. There is no analytics, telemetry or tracking. The page refuses to run inside another site's frame. Microphone access is used only when you press Record. Vault history uses PBKDF2-SHA-256 (250,000 rounds, random 128-bit salt) and AES-256-GCM with a fresh 96-bit nonce per write; Lock reloads the page so keys and decrypted history leave memory. Limits: this app shares the aeiouvcode.github.io origin with other projects by the same author, model weights are public third-party data, and a malicious browser extension can still observe any page you open.</p></div>
     </div>
     <div class="footnote">EDGE//AI - on-device inference for any phone<br>Engine: Transformers.js (Hugging Face) + ONNX Runtime Web, WebGPU with WASM fallback<br>No backend. No account. On-device needs no key; optional NIM connects to your own container.</div>
   </section>
@@ -547,7 +550,7 @@ Same origin only.</div></div>
 <script type="importmap">{"integrity":{"https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js":"sha384-qgXJ7dcf8bYoYbel57c9rhOd7qRdLSraaF9XvjXERQll0Pf5e/HV8CDccvn3xgTp"}}</script>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js" integrity="sha384-qgXJ7dcf8bYoYbel57c9rhOd7qRdLSraaF9XvjXERQll0Pf5e/HV8CDccvn3xgTp" crossorigin="anonymous">
 <script type="module">
-import { pipeline, env, TextStreamer, InterruptableStoppingCriteria } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js';
+import { pipeline, env, TextStreamer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js';
 
 /* ---------- frame guard: meta frame-ancestors is ignored, so refuse cross-origin embedding here ---------- */
 if(window.top!==window){let same=false;try{same=window.top.location.origin===location.origin;}catch(_){}
@@ -569,6 +572,7 @@ const S = {
   engines: {},        // task -> {pipe, model}
   chatModel: null, asrModel: null,
   history: [],        // chat messages for active chat model
+  chatWorker: null, chatPending: new Map(), chatSequence: 0,
   benchStop: false,
   store: { history: {}, settings: {}, benchmarks: [], cloakMap: {} },
   busy: false, toolCaller: null, toolQueue: [],
@@ -663,21 +667,23 @@ $('#lockpass').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#unlockbtn'
 $('#lockpass2').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#unlockbtn').click(); });
 function enterApp(){
   $('#lock').classList.remove('on');
+  bumpIdle();
   $('#lockbtn').style.display = S.saveMode==='enc' ? 'block':'none';
-  if(S.saveMode==='enc' && S.store.settings.lastTab){ /* keep probe default */ } renderCloakState(); restoreNIM(); restoreGemini(); announceToolReady(); queueURLPrompt();
+  renderCloakState(); restoreNIM(); restoreGemini(); announceToolReady(); queueURLPrompt();
 }
-$('#lockbtn').onclick=()=>{ S.key=null; S.geminiKey=''; S.nimKey=''; S.store={history:{},settings:{},benchmarks:[],cloakMap:{}}; location.reload(); };
+$('#lockbtn').onclick=()=>{ location.reload(); };
 async function persist(){
   if(S.saveMode!=='enc'||!S.key) return;
   clearTimeout(S._pt);
   S._pt=setTimeout(async ()=>{
-    const blob=await encJSON(S.key, S.store);
-    localStorage.setItem(LS_DATA, JSON.stringify(blob));
+    const key=S.key, snapshot=structuredClone(S.store);
+    const blob=await encJSON(key, snapshot);
+    if(S.key===key&&S.saveMode==='enc')localStorage.setItem(LS_DATA, JSON.stringify(blob));
   },400);
 }
 /* auto-lock after 10 min idle */
 let idleT=null;
-function bumpIdle(){ if(S.saveMode!=='enc')return; clearTimeout(idleT); idleT=setTimeout(()=>{ if(S.key){ S.key=null; toast('Auto-locked (10 min idle)'); lockInit(); } }, 10*60*1000); }
+function bumpIdle(){ if(S.saveMode!=='enc')return; clearTimeout(idleT); idleT=setTimeout(()=>{ if(S.key)location.reload(); }, 10*60*1000); }
 ['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev, bumpIdle, {passive:true}));
 
 /* ---------- probe ---------- */
@@ -817,19 +823,7 @@ function renderCatalog(){
 function devPick(){ return (S.probe&&S.probe.webgpu)?'webgpu':'wasm'; }
 async function makePipe(task, m, onp){
   const dev=devPick();
-  if(task==='chat'){
-    if(dev==='webgpu'){
-      try{ return await pipeline('text-generation', m.repo, {device:'webgpu', dtype:'q4f16', progress_callback:onp}); }
-      catch(gpu16){
-        try{ return await pipeline('text-generation', m.repo, {device:'webgpu', dtype:'q4', progress_callback:onp}); }
-        catch(gpu4){
-          toast('GPU engine unavailable - switching to the private CPU engine.',5200);
-          return await pipeline('text-generation', m.repo, {device:'wasm', dtype:'q4', progress_callback:onp});
-        }
-      }
-    }
-    return await pipeline('text-generation', m.repo, {device:'wasm', dtype:'q4', progress_callback:onp});
-  }
+  if(task==='chat') throw new Error('Chat models load in the dedicated worker');
   if(task==='asr'){
     return await pipeline('automatic-speech-recognition', m.repo, {device:dev, dtype:{encoder_model:'fp32', decoder_model_merged:'q4'}, progress_callback:onp});
   }
@@ -854,6 +848,43 @@ function progressUI(card){
     else if(p.status==='done'){ note.textContent='compiling / warming up'; }
   };
 }
+function chatWorker() {
+  if (S.chatWorker) return S.chatWorker;
+  const worker = new Worker('./chat-worker.js', {type:'module'});
+  worker.onmessage = ({data}) => {
+    const pending = S.chatPending.get(data.id);
+    if (!pending) return;
+    if (data.kind === 'progress' || data.kind === 'chunk') { pending.onEvent?.(data); return; }
+    S.chatPending.delete(data.id);
+    if (data.kind === 'error') pending.reject(new Error(data.error));
+    else pending.resolve(data);
+  };
+  worker.onerror = e => {
+    for (const pending of S.chatPending.values()) pending.reject(new Error('Chat engine stopped unexpectedly'));
+    S.chatPending.clear(); S.chatWorker = null;
+    worker.terminate();
+  };
+  S.chatWorker = worker;
+  return worker;
+}
+function chatRequest(action, data = {}, onEvent) {
+  const worker = chatWorker(), id = ++S.chatSequence;
+  return new Promise((resolve, reject) => {
+    S.chatPending.set(id, {resolve, reject, onEvent});
+    worker.postMessage({id, action, ...data});
+  });
+}
+function stopChatEngine() {
+  S.chatWorker?.terminate(); S.chatWorker = null;
+  for (const pending of S.chatPending.values()) pending.reject(new DOMException('Stopped', 'AbortError'));
+  S.chatPending.clear();
+  delete S.engines.chat;
+  $('#unloadbtn').style.display='none';
+  $('#chatsend').disabled=true;
+  $('#chatin').disabled=true;
+  setPill(Object.keys(S.engines).length?'live':'idle', Object.keys(S.engines).length?'ON-DEVICE':'IDLE');
+  announceToolReady();
+}
 async function loadModel(mid){
   if(S.busy){ toast('one load at a time'); return; }
   const m=findModel(mid); if(!m)return;
@@ -863,21 +894,19 @@ async function loadModel(mid){
   setPill('live','LOADING');
   card.querySelector('.loadbtn').disabled=true;
   try{
-    // exclusive tasks: one chat LLM / one ASR at a time
-    if((m.task==='chat'&&S.engines.chat)||(m.task==='asr'&&S.engines.asr)){ await dropEngine(m.task); }
     if(S.engines[m.task]&&S.engines[m.task].model.id===m.id){ openWorkbench(m); return; }
     if(S.engines[m.task]) await dropEngine(m.task);
     const t0=performance.now();
-    const pipe=await makePipe(m.task, m, onp);
-    S.engines[m.task]={pipe, model:m};
-    card.querySelector('.loadnote').textContent='ready in '+((performance.now()-t0)/1000).toFixed(1)+'s on '+(devPick()==='webgpu'?'GPU (WebGPU)':'CPU (WASM)');
+    const loaded=m.task==='chat' ? await chatRequest('load',{repo:m.repo,device:devPick()}, e=>onp(e.progress)) : null;
+    const pipe=m.task==='chat' ? null : await makePipe(m.task, m, onp);
+    S.engines[m.task]={pipe, model:m, device:loaded?.device||devPick()};
+    card.querySelector('.loadnote').textContent='ready in '+((performance.now()-t0)/1000).toFixed(1)+'s on '+(S.engines[m.task].device==='webgpu'?'GPU (WebGPU)':'CPU (WASM)');
     card.classList.add('iscached');
     setPill('live','ON-DEVICE');
     openWorkbench(m);
     announceToolReady(); if(S.toolQueue.length){const q=S.toolQueue.shift();if(BRIDGE_NAME==='openmuse')handleBridgeInfer({edgeai:'infer',id:'url-'+Date.now(),nonce:BRIDGE_NONCE,messages:[{role:'user',content:q.prompt}],stream:true},q.source);else handleLegacyToolCall({type:'edge-ai:prompt',id:'url-'+Date.now(),prompt:q.prompt},q.source);}
     markCachedBadges();
   }catch(e){
-    console.error(e);
     card.querySelector('.loadnote').textContent=humanError(e,'model load');
     setPill('idle','IDLE');
     toast('Load failed: '+friendlyLoadError(e), 7000);
@@ -889,6 +918,7 @@ async function loadModel(mid){
 }
 async function dropEngine(task){
   const e=S.engines[task]; if(!e)return;
+  if(task==='chat'){ stopChatEngine(); return; }
   try{ if(e.pipe&&e.pipe.dispose) await e.pipe.dispose(); }catch(_){}
   delete S.engines[task];
 }
@@ -910,7 +940,7 @@ function openWorkbench(m){
   $('#wbtitle').textContent=m.name;
   $('#wbmeta').textContent=m.repo+' - '+(devPick()==='webgpu'?'WebGPU':'WASM CPU');
   const ub=$('#unloadbtn'); ub.style.display='inline-block'; ub.dataset.task=m.task;
-  if(m.task==='chat'){ S.chatModel=m; loadChatHistory(); }
+  if(m.task==='chat'){ S.chatModel=m; loadChatHistory(); $('#chatsend').disabled=false; $('#chatin').disabled=false; }
   if(m.task==='asr'){ S.asrModel=m; }
   if(m.task==='translate'){ $('#trgo').textContent='Translate to '+m.outlang; }
 }
@@ -926,20 +956,21 @@ async function markCachedBadges(){
   const urls=all.flatMap(c=>c.urls).join('\n');
   $$('.card[data-mid]').forEach(card=>{
     const m=findModel(card.dataset.mid);
-    if(m&&urls.includes(m.repo)) card.classList.add('iscached');
+    card.classList.toggle('iscached',!!m&&urls.includes(m.repo));
   });
 }
 async function refreshCacheInfo(){
   const all=await cacheKeys();
-  const n=all.reduce((a,c)=>a+c.urls.length,0);
+  const modelCaches=all.filter(c=>c.name==='transformers-cache');
+  const n=modelCaches.reduce((a,c)=>a+c.urls.length,0);
   let used=null; try{ const e=await navigator.storage.estimate(); used=e.usage; }catch(_){}
-  $('#cacheinfo').textContent = n? (n+' files held in browser cache - '+fmtBytes(used)+' total app storage. Delete frees the space; models re-download on next load.') : 'No models cached yet.';
+  $('#cacheinfo').textContent = n? (n+' model/runtime files in browser cache · '+fmtBytes(used)+' total app storage. Clearing the model cache frees model files; the app shell remains.') : 'No model files cached yet.';
   markCachedBadges();
 }
 $('#cacheclear').onclick=()=>askConfirm('Delete every cached model file? They re-download on next use.', async ()=>{
-  for(const name of await caches.keys()){ if(name.includes('transformers')) await caches.delete(name); }
+  for(const name of await caches.keys()){ if(name==='transformers-cache') await caches.delete(name); }
   $$('.card.iscached').forEach(c=>c.classList.remove('iscached'));
-  refreshCacheInfo(); toast('model cache cleared');
+  refreshCacheInfo(); toast('Model cache cleared. A loaded model may still be in memory until you unload it.');
 });
 
 /* ---------- same-origin local tool bridge ---------- */
@@ -956,16 +987,16 @@ async function runToolPrompt(messages, options={}, onChunk=()=>{}){
   if(!eng)throw Object.assign(new Error('model required'),{code:'needs_model'});
   if(S.busy)throw Object.assign(new Error('engine busy'),{code:'busy'});
   S.busy=true; setPill('live','TOOL'); toolState('Running a local request…');
-  let out='',tok=0;const t0=performance.now();let first=null;
-  try{
-    const streamer=new TextStreamer(eng.pipe.tokenizer,{skip_prompt:true,skip_special_tokens:true,callback_function:t=>{if(first==null)first=performance.now();out+=t;tok++;toolState('Generating locally · '+tok+' tokens');onChunk(out);}});
+  try {
     const safe=(Array.isArray(messages)?messages:[]).slice(-20).map(m=>({role:['system','user','assistant'].includes(m.role)?m.role:'user',content:String(m.content||'').slice(0,20000)})).filter(m=>m.content);
     if(!safe.length)throw Object.assign(new Error('prompt required'),{code:'bad_prompt'});
     const max=Math.max(16,Math.min(768,Number(options.max_new_tokens)||256));
     const temp=Math.max(0,Math.min(1.5,Number(options.temperature) || .7));
-    await eng.pipe(safe,{max_new_tokens:max,do_sample:temp>0,temperature:Math.max(temp,.01),top_p:.9,repetition_penalty:1.15,streamer});
-    const sec=(performance.now()-t0)/1000;toolState('Last local tool call completed · '+(tok/sec).toFixed(1)+' tok/s');
-    return {text:out,metrics:{tokens:tok,seconds:Number(sec.toFixed(2)),tokens_per_second:Number((tok/sec).toFixed(2)),engine:devPick(),model:eng.model.repo}};
+    const result=await chatRequest('generate',{messages:safe,options:{max_new_tokens:max,temperature:temp,top_p:.9}},e=>{
+      toolState('Generating locally · '+e.tokens+' tokens'); onChunk(e.text);
+    });
+    toolState('Last local tool call completed · '+result.metrics.tokens_per_second+' tok/s');
+    return {text:result.text,metrics:result.metrics};
   }finally{S.busy=false;setPill(S.engines.chat?'live':'idle',S.engines.chat?'ON-DEVICE':'IDLE');}
 }
 async function handleLegacyToolCall(data,source){
@@ -1000,7 +1031,8 @@ function queueURLPrompt(){const q=BRIDGE_Q.get('prompt');if(!q)return;const sour
 /* ---------- chat ---------- */
 function chatKey(){ return S.chatModel?S.chatModel.id:'chat'; }
 function loadChatHistory(){
-  S.history = (S.store.history&&S.store.history[chatKey()])||[];
+  S.history = (S.saveMode==='enc'&&S.store.history&&S.store.history[chatKey()])||[];
+  $('#chatcontext').textContent=S.saveMode==='enc'?'Encrypted history for this model':'Session only · no history saved';
   const th=$('#thread'); th.innerHTML='';
   if(!S.history.length) addMsg('sys','running 100% on this device - nothing you type leaves it');
   else S.history.forEach(m=>addMsg(m.role==='user'?'user':'bot', m.content, true));
@@ -1011,7 +1043,8 @@ function addMsg(kind, text, silent){
   return d;
 }
 ['chattemp','chatmax','chattopp'].forEach(id=>$('#'+id).oninput=e=>$('#'+id+'v').textContent=e.target.value);
-$('#chatsend').onclick=()=>S.chatStop?S.chatStop.interrupt():sendChat();
+$('#chatnew').onclick=()=>{if(S.busy)return toast('stop the current reply first');askConfirm('Start a new chat? This clears the conversation for the loaded model.',()=>{S.history=[];$('#thread').replaceChildren();addMsg('sys','New chat · on-device only');$('#chatstats').textContent='';if(S.saveMode==='enc'){delete S.store.history[chatKey()];persist();}});};
+$('#chatsend').onclick=()=>S.chatStop?stopChatEngine():sendChat();
 $('#chatin').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){e.preventDefault();sendChat();} });
 async function sendChat(){
   const eng=S.engines.chat; if(!eng||S.busy)return;
@@ -1021,21 +1054,25 @@ async function sendChat(){
   S.history.push({role:'user', content:text});
   const bubble=addMsg('bot','');
   const stats=$('#chatstats'); stats.textContent='thinking on-device...';
-  const stop=new InterruptableStoppingCriteria(); S.chatStop=stop; $('#chatsend').textContent='Stop'; $('#chatsend').classList.remove('solid');
-  let out='', tok=0; const t0=performance.now(); let first=null;
+  S.chatStop=true; $('#chatsend').textContent='Stop'; $('#chatsend').classList.remove('solid');
   try{
-    const streamer=new TextStreamer(eng.pipe.tokenizer, {skip_prompt:true, skip_special_tokens:true,
-      callback_function:t=>{ if(first==null)first=performance.now(); out+=t; tok++; bubble.textContent=out; bubble.scrollIntoView({block:'end'}); }});
     const messages=[{role:'system',content:$('#chatsystem').value.trim()||'You are a helpful assistant.'},...S.history.slice(-12).map(m=>({role:m.role, content:m.content}))];
     const temp=Number($('#chattemp').value), maxTok=Number($('#chatmax').value), topP=Number($('#chattopp').value);
-    await eng.pipe(messages, {max_new_tokens:maxTok, do_sample:temp>0, temperature:Math.max(temp,.01), top_p:topP, repetition_penalty:1.15, streamer, stopping_criteria:stop});
-    const dt=(performance.now()-t0)/1000;
-    stats.textContent=(stop.interrupted?'stopped · ':'')+tok+' tokens in '+dt.toFixed(1)+'s - '+(tok/dt).toFixed(1)+' tok/s on '+(devPick()==='webgpu'?'GPU':'CPU');
-    S.history.push({role:'assistant', content:out});
+    const result=await chatRequest('generate',{messages,options:{max_new_tokens:maxTok,temperature:temp,top_p:topP}},e=>{
+      bubble.textContent=e.text; bubble.scrollIntoView({block:'end'});
+    });
+    bubble.textContent=result.text;
+    stats.textContent=result.metrics.tokens+' tokens in '+result.metrics.seconds.toFixed(1)+'s - '+result.metrics.tokens_per_second.toFixed(1)+' tok/s on '+(result.metrics.engine==='webgpu'?'GPU':'CPU');
+    S.history.push({role:'assistant', content:result.text});
     if(S.saveMode==='enc'){ S.store.history[chatKey()]=S.history.slice(-40); persist(); }
-  }catch(e){ bubble.textContent=humanError(e,'reply'); stats.textContent=''; }
-  S.chatStop=null; $('#chatsend').textContent='Send'; $('#chatsend').classList.add('solid');
-  S.busy=false;
+  }catch(e){
+    if(e.name==='AbortError'){
+      bubble.textContent=bubble.textContent || '(stopped)';
+      stats.textContent='Stopped. Model unloaded to free the phone. Load it again from Models to continue.';
+    }else { bubble.textContent=humanError(e,'reply'); stats.textContent=''; }
+  }finally{
+    S.chatStop=null; $('#chatsend').textContent='Send'; $('#chatsend').classList.add('solid'); $('#chatsend').disabled=!S.engines.chat; S.busy=false;
+  }
 }
 
 /* ---------- cloud cloak: local substitution boundary ---------- */
@@ -1063,6 +1100,12 @@ $('#cloakpreview').onclick=()=>{const terms=$('#cloakterms').value.split(',').ma
 
 /* ---------- Gemini: direct BYO-key cloud escalation ---------- */
 const GEMINI_BASE='https://generativelanguage.googleapis.com/v1beta/openai';
+function cloudError(status, provider){
+  if(status===401||status===403)return provider+' rejected this key or access.';
+  if(status===429)return provider+' rate limit reached. Wait a minute before retrying.';
+  if(status>=500)return provider+' is unavailable right now. Try again later.';
+  return provider+' returned HTTP '+status+'. Check the model and connection.';
+}
 function geminiHeaders(){return {Authorization:'Bearer '+S.geminiKey,'Content-Type':'application/json',Accept:'application/json'};}
 function geminiState(on){$('#geminikey').value='';$('#geminikeyrow').hidden=on;$('#geminiconnected').hidden=!on;$('#geminiforget').disabled=!on;
   for(const id of ['gstepmodel','gstepprompt'])$('#'+id).setAttribute('aria-disabled',String(!on));
@@ -1070,7 +1113,7 @@ function geminiState(on){$('#geminikey').value='';$('#geminikeyrow').hidden=on;$
   $('#geminichip').textContent=on?'ON':'OFF';$('#geminichip').className='chip '+(on?'yes':'no');
   if(!on){$('#geminisend').disabled=true;S.geminiPreview=null;$('#geminioutpane').hidden=$('#geminireplypane').hidden=true;$('#geminiout').textContent=$('#geminireply').textContent='';}}
 async function restoreGemini(){const k=S.saveMode==='enc'&&S.store.settings?.geminiKey;$('#geminiremember').disabled=S.saveMode!=='enc';$('#geminiremembernote').textContent=S.saveMode==='enc'?'Saved only inside your AES-GCM vault.':'Session mode: nothing is saved.';if(k){S.geminiKey=k;$('#geminiremember').checked=true;await loadGemini();}}
-async function loadGemini(){if(!S.geminiKey)return;$('#geminiconnect').disabled=true;$('#geministatus').textContent='Checking key and loading Gemini catalog…';try{const r=await fetch(GEMINI_BASE+'/models',{headers:{Authorization:'Bearer '+S.geminiKey}});if(!r.ok)throw new Error(r.status===401||r.status===403?'Gemini rejected this key.':'Gemini catalog returned HTTP '+r.status+'.');const d=await r.json(),ids=(d.data||[]).map(x=>String(x.id||'').replace(/^models\//,'')).filter(id=>/^gemini/i.test(id)&&!/-tts$/i.test(id)).sort();if(!ids.length)throw new Error('Gemini returned no compatible chat models.');S.geminiModels=ids;$('#geminimodel').replaceChildren(...ids.map(id=>new Option(id,id)));const preferred=ids.find(id=>id==='gemini-3.6-flash')||ids.find(id=>/flash$/.test(id));if(preferred)$('#geminimodel').value=preferred;geminiState(true);$('#geminiconnlabel').textContent='Connected · '+ids.length+' models';$('#geministatus').textContent='Pick a model, write, preview, send.';if(S.saveMode==='enc'&&$('#geminiremember').checked){S.store.settings.geminiKey=S.geminiKey;await persist();}}catch(e){geminiState(false);$('#geministatus').textContent=/Failed to fetch/i.test(e.message||'')?'Gemini could not be reached from this browser.':e.message;}finally{$('#geminiconnect').disabled=false;}}
+async function loadGemini(){if(!S.geminiKey)return;$('#geminiconnect').disabled=true;$('#geministatus').textContent='Checking key and loading Gemini catalog…';try{const r=await fetch(GEMINI_BASE+'/models',{headers:{Authorization:'Bearer '+S.geminiKey}});if(!r.ok)throw new Error(cloudError(r.status,'Gemini'));const d=await r.json(),ids=(d.data||[]).map(x=>String(x.id||'').replace(/^models\//,'')).filter(id=>/^gemini/i.test(id)&&!/-tts$/i.test(id)).sort();if(!ids.length)throw new Error('Gemini returned no compatible chat models.');S.geminiModels=ids;$('#geminimodel').replaceChildren(...ids.map(id=>new Option(id,id)));const preferred=ids.find(id=>id==='gemini-3.6-flash')||ids.find(id=>/flash$/.test(id));if(preferred)$('#geminimodel').value=preferred;geminiState(true);$('#geminiconnlabel').textContent='Connected · '+ids.length+' models';$('#geministatus').textContent='Pick a model, write, preview, send.';if(S.saveMode==='enc'&&$('#geminiremember').checked){S.store.settings.geminiKey=S.geminiKey;await persist();}}catch(e){geminiState(false);$('#geministatus').textContent=/Failed to fetch/i.test(e.message||'')?'Gemini could not be reached from this browser.':e.message;}finally{$('#geminiconnect').disabled=false;}}
 $('#geminikeyrow').onsubmit=async e=>{e.preventDefault();const k=$('#geminikey').value.trim();if(!k)return toast('paste a Google AI Studio key');S.geminiKey=k;await loadGemini();};
 $('#geminiremember').onchange=async e=>{if(S.saveMode!=='enc'){e.target.checked=false;return toast('unlock an encrypted vault to remember a key');}if(e.target.checked&&S.geminiKey)S.store.settings.geminiKey=S.geminiKey;else delete S.store.settings.geminiKey;await persist();};
 $('#geminiforget').onclick=async()=>{S.geminiKey='';S.geminiPreview=null;$('#geminimodel').replaceChildren(new Option('Connect to load models',''));geminiState(false);delete S.store.settings.geminiKey;if(S.saveMode==='enc')await persist();$('#geministatus').textContent='Gemini key forgotten. Cloud is off.';};
@@ -1080,7 +1123,7 @@ $('#geminisend').onclick=async()=>{const p=S.geminiPreview;if(!p||p.raw!==$('#ge
   const ask=async()=>{const ac=new AbortController(),t=setTimeout(()=>ac.abort(),60000);try{return await fetch(GEMINI_BASE+'/chat/completions',{method:'POST',headers:geminiHeaders(),signal:ac.signal,body:JSON.stringify({model:p.model,messages:[{role:'user',content:p.cloaked}],max_tokens:1024,stream:false})});}finally{clearTimeout(t);}};
   try{let r=await ask();if(r.status===429||r.status===503){$('#geministatus').textContent='Gemini is busy. Retrying once…';await new Promise(f=>setTimeout(f,2500));r=await ask();}
     const d=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(r.status===429?'Rate limit reached for this key. Wait a minute or pick another model.':r.status===503?'Gemini is overloaded right now. Try again, or pick another model.':(d.error?.message||'Gemini returned HTTP '+r.status+'.'));
+    if(!r.ok)throw new Error(cloudError(r.status,'Gemini'));
     const t=d.choices?.[0]?.message?.content;if(typeof t!=='string')throw new Error('Gemini returned no text.');
     $('#geminireply').textContent=uncloakText(t);$('#geministatus').textContent='Reply restored locally · '+p.model;S.geminiPreview=null;
   }catch(e){$('#geminireply').textContent=e.name==='AbortError'?'No answer within 60 seconds. Nothing was restored.':e.message;$('#geministatus').textContent='Cloud request failed. Send again to retry; on-device models are unaffected.';btn.disabled=false;}};
@@ -1099,12 +1142,12 @@ async function loadNIMModels(){
   try{
     const headers={Accept:'application/json'};if(S.nimKey)headers.Authorization='Bearer '+S.nimKey;
     const r=await fetch(nimEndpoint()+'/models',{headers});
-    if(!r.ok)throw new Error(r.status===401||r.status===403?'This NIM endpoint rejected the optional key.':'NIM model catalog returned HTTP '+r.status+'.');
+    if(!r.ok)throw new Error(cloudError(r.status,'NIM'));
     const data=await r.json(),models=(data.data||[]).filter(x=>x&&x.id).map(x=>x.id).sort();if(!models.length)throw new Error('This NIM endpoint returned no models.');
     S.nimModels=models;$('#nimmodel').replaceChildren(...models.map(id=>new Option(id,id)));setNIMConnected(true);
     $('#nimstatus').textContent='Connected to self-hosted NIM · '+models.length+' models available.';
     if(S.saveMode==='enc'&&$('#nimremember').checked){S.store.settings.nimKey=S.nimKey;await persist();}
-  }catch(e){setNIMConnected(false);$('#nimstatus').textContent=/Failed to fetch/i.test(e.message||'')?'The NIM endpoint could not be reached. Start the container, enable CORS, and check the endpoint URL.':(e.message||'NVIDIA connection failed. Nothing was sent.');}
+  }catch(e){setNIMConnected(false);$('#nimstatus').textContent=/Failed to fetch/i.test(e.message||'')?'The NIM endpoint could not be reached. Start the container, enable CORS, and check the endpoint URL.':(e.message||'NIM connection failed. Nothing was sent.');}
   finally{$('#nimconnect').disabled=false;}
 }
 $('#nimconnect').onclick=async()=>{S.nimKey=$('#nimkey').value.trim();await loadNIMModels();};
@@ -1124,10 +1167,10 @@ $('#nimsend').onclick=async()=>{
   $('#nimsend').disabled=true;$('#nimstatus').textContent='Your NIM endpoint is generating…';nimMessage('Waiting for NVIDIA…');
   try{
     const r=await fetch(nimEndpoint()+'/chat/completions',{method:'POST',headers:nimAuthHeaders(),body:JSON.stringify({model:p.model,messages:[{role:'user',content:p.cloaked}],stream:false,max_tokens:1024})});
-    const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.detail||data.message||data.error?.message||('NIM endpoint returned HTTP '+r.status));
+    const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(cloudError(r.status,'NIM'));
     const text=data.choices?.[0]?.message?.content;if(typeof text!=='string')throw new Error('NIM endpoint returned no text reply.');
     nimMessage(uncloakText(text));$('#nimstatus').textContent='NIM reply restored locally · '+p.model;S.nimPreview=null;
-  }catch(e){nimMessage('NIM request failed. '+(e.message||'No reply was returned.'));$('#nimstatus').textContent='NIM request failed. Your on-device models are unaffected.';}
+  }catch(e){nimMessage('NIM request failed. '+(e instanceof TypeError?'Check the endpoint connection and CORS settings.':(e.message||'No reply was returned.')));$('#nimstatus').textContent='NIM request failed. Your on-device models are unaffected.';}
 };
 
 /* ---------- pocket lab: real device benchmark + custom HF model ---------- */
@@ -1228,9 +1271,9 @@ $('#hfload').onclick=async()=>{
   try{
     if(S.engines.chat)await dropEngine('chat');
     const dtype=$('#hfdtype').value;
-    const pipe=await pipeline('text-generation',repo,{device:'webgpu',dtype,progress_callback:p=>{if(p.status==='progress'&&p.total){const pc=Math.round(100*p.loaded/p.total);fill.style.width=pc+'%';$('#hfstatus').textContent='downloading '+p.file+' · '+pc+'%';}else if(p.status==='initiate')$('#hfstatus').textContent='checking '+p.file;}});
-    S.engines.chat={pipe,model:m}; fill.style.width='100%'; $('#hfstatus').textContent='ready · '+repo+' · WebGPU '+dtype; setPill('live','ON-DEVICE'); openWorkbench(m);
-  }catch(e){console.error(e); $('#hfstatus').textContent=humanError(e,'custom model load'); setPill('idle','IDLE');}
+    const loaded=await chatRequest('load',{repo,device:'webgpu',dtype,custom:true},e=>{const p=e.progress;if(p.status==='progress'&&p.total){const pc=Math.round(100*p.loaded/p.total);fill.style.width=pc+'%';$('#hfstatus').textContent='downloading '+p.file+' · '+pc+'%';}else if(p.status==='initiate')$('#hfstatus').textContent='checking '+p.file;});
+    S.engines.chat={pipe:null,model:m,device:loaded.device}; fill.style.width='100%'; $('#hfstatus').textContent='ready · '+repo+' · WebGPU '+dtype; setPill('live','ON-DEVICE'); openWorkbench(m);
+  }catch(e){$('#hfstatus').textContent=humanError(e,'custom model load'); setPill('idle','IDLE');}
   finally{S.busy=false;$('#hfload').disabled=false;}
 };
 
@@ -1384,4 +1427,4 @@ refreshCacheInfo();
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 </script>
 </body>
-  </html>
+</html>
