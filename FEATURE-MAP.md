@@ -1,6 +1,6 @@
 # EDGE//AI feature map
 
-Live app: https://aeiouvcode.github.io/edge-ai/. Start at the vault overlay: create/unlock a passphrase vault for encrypted persistence, or tap **Continue without saving** for a session-only run. Bottom navigation is Probe, Models, Work, Lab, Truth. This map describes the current UI, not a promise that every model fits every device.
+Live app: https://aeiouvcode.github.io/edge-ai/. Start at the vault overlay: create/unlock a passphrase vault for encrypted persistence, or tap **Session only - save nothing** for a session-only run. Bottom navigation is Probe, Models, Work, Lab, Truth. This map describes the current UI, not a promise that every model fits every device.
 
 | Feature | Route / trigger | What to expect |
 | --- | --- | --- |
