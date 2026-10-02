@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#191512">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=(), interest-cohort=()">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'sha256-ronwrR5LutSiVSddSslSczCuA62sCQhOdJP+kUPWoQ0=' 'sha256-xKmzvaSxRb9rjJ6hPWxKnvrnr7tfBwCqMjNM/WuwYlw=' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js; style-src 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js https://huggingface.co https://*.huggingface.co https://*.hf.co https://generativelanguage.googleapis.com http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'sha256-ronwrR5LutSiVSddSslSczCuA62sCQhOdJP+kUPWoQ0=' 'sha256-PW3j3dHrj+XvKUOT2TCWJ6K16HtG1EQZg85sT7ZVNh4=' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js; style-src 'unsafe-inline'; connect-src 'self' https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js https://huggingface.co https://*.huggingface.co https://*.hf.co https://generativelanguage.googleapis.com http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; child-src blob:; img-src 'self' data: blob:; media-src blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests">
 <meta name="description" content="Run small AI models privately on your phone. On-device chat, speech, translation and benchmarks, with an optional bring-your-own-key Gemini connection.">
 <link rel="icon" type="image/svg+xml" href="./favicon.svg">
 <title>EDGE//AI | Private on-device AI for your phone</title>
@@ -300,6 +300,7 @@ details.cloakbox>summary::after{content:'+';font-family:var(--mono);color:var(--
       <p>Every model here downloads once from Hugging Face into your browser cache, then runs entirely on this device. Sizes are honest - a big download on hotel wifi is a commitment.</p>
     </div>
     <div id="catalog"></div>
+    <div class="note"><h3>Small-model limits</h3><p>These models are tiny. They can be wrong at arithmetic and at facts, and they sound sure when they are. Plain sums typed in Work are answered by a built-in calculator instead (no model, no network). Check anything that matters.</p></div>
     <div style="margin-top:8px">
       <div class="label" style="margin-bottom:8px">MODEL CACHE</div>
       <div class="card">
@@ -1060,9 +1061,40 @@ function addMsg(kind, text, silent){
 $('#chatnew').onclick=()=>{if(S.busy)return toast('stop the current reply first');askConfirm('Start a new chat? This clears the conversation for the loaded model.',()=>{S.history=[];$('#thread').replaceChildren();addMsg('sys','New chat · on-device only');$('#chatstats').textContent='';if(S.saveMode==='enc'){delete S.store.history[chatKey()];persist();}});};
 $('#chatsend').onclick=()=>S.chatStop?stopChatEngine():sendChat();
 $('#chatin').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){e.preventDefault();sendChat();} });
+/*CALC_START*/
+function calcTry(raw){
+  if(typeof raw!=='string'||raw.length>200)return null;
+  let s=raw.trim().toLowerCase().replace(/[?=\s]+$/,'').replace(/^(what\s+is|what's|whats|calculate|calc|compute|solve)\s+/,'').trim();
+  s=s.replace(/\u00d7/g,'*').replace(/\u00f7/g,'/').replace(/(\d|\))\s*x\s*(\d|\()/g,'$1*$2');
+  if(!/^[0-9+\-*\/^().\s]+$/.test(s)||!/[0-9)]\s*[+\-*\/^]/.test(s)||/(^|[^0-9.])0\d/.test(s))return null;
+  const t=s.match(/\d+\.?\d*|\.\d+|[+\-*\/^()]/g)||[];
+  if(t.join('').length!==s.replace(/\s+/g,'').length)return null;
+  let i=0,depth=0,div0=false;
+  const peek=()=>t[i];
+  function expr(){let v=term();while(peek()==='+'||peek()==='-'){const o=t[i++];const r=term();v=o==='+'?v+r:v-r;}return v;}
+  function term(){let v=unary();while(peek()==='*'||peek()==='/'){const o=t[i++];const r=unary();if(o==='/'){if(r===0)div0=true;v=v/r;}else v=v*r;}return v;}
+  function unary(){if(peek()==='-'){i++;return -unary();}if(peek()==='+'){i++;return unary();}return power();}
+  function power(){const b=atom();if(peek()==='^'){i++;return Math.pow(b,unary());}return b;}
+  function atom(){const x=t[i++];if(x===undefined)throw 0;if(x==='('){if(++depth>40)throw 0;const v=expr();if(t[i++]!==')')throw 0;depth--;return v;}if(/^[\d.]/.test(x)){const n=Number(x);if(Number.isNaN(n))throw 0;return n;}throw 0;}
+  let v;try{v=expr();if(i!==t.length)return null;}catch(e){return null;}
+  if(div0)return {error:'Cannot divide by zero'};
+  if(!Number.isFinite(v))return {error:'Result is too large'};
+  return {expr:s.replace(/\s+/g,''),value:String(Number(v.toPrecision(12)))};
+}
+/*CALC_END*/
 async function sendChat(){
-  const eng=S.engines.chat; if(!eng||S.busy)return;
+  if(S.busy)return;
   const inp=$('#chatin'); const text=inp.value.trim(); if(!text)return;
+  const calc=calcTry(text);
+  if(calc){
+    inp.value=''; addMsg('user',text);
+    const out=calc.error?calc.error+'\n[built-in calculator, no model used]':calc.expr+' = '+calc.value+'\n[built-in calculator, no model used]';
+    addMsg('bot',out); $('#chatstats').textContent='Answered by the built-in calculator on this device. The model was not used.';
+    S.history.push({role:'user',content:text},{role:'assistant',content:out});
+    if(S.saveMode==='enc'){ S.store.history[chatKey()]=S.history.slice(-40); persist(); }
+    return;
+  }
+  const eng=S.engines.chat; if(!eng)return;
   inp.value=''; S.busy=true;
   addMsg('user', text);
   S.history.push({role:'user', content:text});

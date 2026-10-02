@@ -24,5 +24,6 @@ assert(worker.includes('sanityProbe()') && worker.includes('looksLikeText'),'Pos
 const looks=new Function(worker.match(/function looksLikeText[\s\S]*?\n}\n/)[0]+'return looksLikeText;')();
 for(const bad of ['.8/0+',"23'#+>@@+=.)7-/2;=:++*$5'#?",'1','',null,'9?<.-;9+;!;>:>/4;7/#7)"0A<.79@7-*@@-'])assert(!looks(bad),'garbage accepted: '+bad);
 for(const good of ['ready','Ready.','Hello! How can I help?','\u0928\u092e\u0938\u094d\u0924\u0947'])assert(looks(good),'real text rejected: '+good);
-assert(sw.includes('edge-shell-v22'),'Service worker cache not bumped for worker fix');
+assert(sw.includes('edge-shell-v23'),'Service worker cache not bumped for worker fix');
 console.log('Surface checks PASS: CSP, metadata, icon, 404, feature-map, remote error boundary, worker hash');
+assert(html.includes('/*CALC_START*/') && html.includes('built-in calculator, no model used') && html.includes('Small-model limits'),'Calculator route or small-model note missing');
