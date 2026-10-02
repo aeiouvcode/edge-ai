@@ -36,20 +36,48 @@ async function load(id, data) {
   const progress_callback = p => send(id, 'progress', {progress: {
     status: p.status, file: String(p.file || '').slice(0, 180), loaded: p.loaded, total: p.total
   }});
-  const choices = data.device === 'webgpu' ? [
-    ['webgpu', data.dtype || 'q4f16'],
+  // q4 is the default on WebGPU. q4f16 (fp16 math) is opt-in only: on some phone GPUs
+  // (garbage output reported on a Pixel 6 with Mali-G78; cause not confirmed on device) it loads fine but returns garbage tokens.
+  const want = data.dtype || 'q4';
+  const raw = data.device === 'webgpu' ? [
+    ['webgpu', want],
     ...(data.custom ? [] : [['webgpu', 'q4'], ['wasm', 'q4']])
   ] : [['wasm', 'q4']];
+  const choices = raw.filter((c, i) => raw.findIndex(d => d[0] === c[0] && d[1] === c[1]) === i);
   let last;
   for (const [dev, dtype] of choices) {
     try {
       pipe = await pipeline('text-generation', data.repo, {device: dev, dtype, progress_callback});
+      const probe = await sanityProbe();
+      if (!probe.ok) {
+        await unload();
+        last = new Error('Output check failed on ' + dev + ' ' + dtype + ' (dtype not usable on this device)');
+        continue;
+      }
       device = dev; model = data.repo;
-      send(id, 'loaded', {device: dev, model});
+      send(id, 'loaded', {device: dev, model, dtype});
       return;
-    } catch (e) { last = e; }
+    } catch (e) { last = e; await unload().catch(() => {}); }
   }
   throw last;
+}
+
+// A broken GPU path can load fine and emit symbol soup. Run one short greedy reply and
+// require it to be mostly letters before the model is declared ready.
+function looksLikeText(s) {
+  const t = String(s || '').replace(/\s+/g, '');
+  if (t.length < 2) return false;
+  const letters = (t.match(/\p{L}/gu) || []).length;
+  return letters >= 2 && letters / t.length >= 0.6;
+}
+
+async function sanityProbe() {
+  try {
+    const out = await pipe([{role: 'user', content: 'Reply with exactly one word: ready'}], {max_new_tokens: 8, do_sample: false});
+    const g = out?.[0]?.generated_text;
+    const text = Array.isArray(g) ? g[g.length - 1]?.content : g;
+    return {ok: looksLikeText(text), text: String(text || '').slice(0, 40)};
+  } catch (e) { return {ok: false, text: ''}; }
 }
 
 async function generate(id, data) {

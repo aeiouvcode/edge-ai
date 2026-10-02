@@ -33,3 +33,9 @@ Live app: https://aeiouvcode.github.io/edge-ai/. Start at the vault overlay: cre
 - Success states: model ready with timing/device, chat response with measured tokens/s, benchmark result, custom repo preflight, cloud reply only after a fresh preview.
 - Error states: local model/load error, failed cloud connection, request timeout and stop/interruption show human copy. Never display raw service error JSON, stack traces or secrets. In session mode history and keys are not persisted.
 - QA at 390px: take frames of Probe, Models, Work (empty/running/stopped), Lab (disconnected and an authorized preview), Truth and the 404. Check horizontal overflow, focus/disabled states, console and network, CSP/SRI, missing route status, offline fallback, and real model load/generate/Stop. Distinguish local evidence from deployed evidence.
+
+## Chat model dtype and output check (Oct 2 2026)
+
+- Shelf chat models load q4 on WebGPU. q4f16 (fp16 math) is opt-in through the Lab loader only, because it produced garbage text on a Pixel 6 (Mali-G78).
+- After every chat load the worker runs one short greedy reply and requires mostly letters. If the check fails it drops that device/dtype and tries q4, then WASM q4. If all fail, the user sees the humanized load error.
+- Evidence level: unit check of the letters rule in `scripts/check-surface.mjs`, plus a browser WASM run. Not verified on a real Pixel 6.
